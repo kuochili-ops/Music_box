@@ -1,0 +1,77 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ABC 音樂訊息播放器</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/tone/14.8.49/Tone.js"></script>
+    <style>
+        body { font-family: sans-serif; text-align: center; background: #2c3e50; color: white; padding: 20px; }
+        .container { background: #34495e; padding: 30px; border-radius: 15px; display: inline-block; }
+        button { background: #27ae60; border: none; padding: 15px 40px; color: white; border-radius: 30px; font-size: 1.2rem; cursor: pointer; }
+        .note-display { font-size: 2rem; margin: 20px 0; color: #f1c40f; min-height: 50px; }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <h2>🎵 掃描到的音樂訊息</h2>
+    <div id="msg" style="font-size: 1.2rem; margin-bottom: 10px;"></div>
+    <div class="note-display" id="noteDisplay">-</div>
+    <button id="playBtn">播放旋律</button>
+</div>
+
+<script>
+    // 1. 從網址取得參數 (假設網址為 ?abc=CDE2FG&t=Hello)
+    const params = new URLSearchParams(window.location.search);
+    const abcMelody = params.get('abc') || "C D E F G A B c"; // 預設音階
+    const textMsg = params.get('t') || "歡迎使用音樂 QR Code！";
+    
+    document.getElementById('msg').innerText = textMsg;
+
+    // 2. ABC 轉 Tone.js 簡易解析引擎
+    function parseABC(abc) {
+        const notes = [];
+        const baseOctave = 4;
+        
+        // 簡單正則：匹配 A-G 或 a-g 加上 長度數字
+        const regex = /([A-Ga-g])([\d\/]*)/g;
+        let match;
+        
+        while ((match = regex.exec(abc)) !== null) {
+            let char = match[1];
+            let duration = match[2] || "1";
+            
+            // ABC 規則：大寫是第 4 八度，小寫是第 5 八度
+            let octave = (char === char.toUpperCase()) ? baseOctave : baseOctave + 1;
+            let noteName = char.toUpperCase() + octave;
+            
+            // 解析長度 (簡化版：1=4n, 2=2n)
+            let toneDuration = duration === "2" ? "2n" : "4n";
+            
+            notes.push({ note: noteName, duration: toneDuration });
+        }
+        return notes;
+    }
+
+    // 3. 播放邏輯
+    document.getElementById('playBtn').onclick = async () => {
+        await Tone.start();
+        const synth = new Tone.PolySynth(Tone.Synth).toDestination();
+        const melody = parseABC(abcMelody);
+        
+        let time = Tone.now();
+        melody.forEach(item => {
+            Tone.Transport.scheduleOnce((t) => {
+                document.getElementById('noteDisplay').innerText = item.note;
+            }, time);
+            
+            synth.triggerAttackRelease(item.note, item.duration, time);
+            time += Tone.Time(item.duration).toSeconds();
+        });
+        
+        Tone.Transport.start();
+    };
+</script>
+</body>
+</html>
