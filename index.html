@@ -3,302 +3,106 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>音樂訊息盒子 🎵</title>
+    <title>音樂訊息 QR Code 產生器 🎵</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/tone/14.8.49/Tone.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
-    
     <style>
-        body {
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            background-color: #f0f2f5;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            min-height: 100vh;
-            margin: 0;
-            color: #333;
-        }
-
-        .card {
-            background: white;
-            padding: 40px;
-            border-radius: 20px;
-            box-shadow: 0 10px 30px rgba(0,0,0,0.1);
-            width: 380px; /* 稍微加大卡片寬度以容納內容 */
-            text-align: center;
-            transition: background-color 0.5s ease;
-        }
-
-        h1 { color: #333; font-size: 1.8rem; margin-bottom: 20px; }
-        label { display: block; text-align: left; margin-top: 15px; margin-bottom: 5px; font-weight: bold; color: #555; }
-        input[type="text"], textarea {
-            width: calc(100% - 24px); /* 調整寬度以考慮 padding */
-            padding: 12px;
-            margin-bottom: 15px;
-            border-radius: 8px;
-            border: 1px solid #ddd;
-            box-sizing: border-box;
-            font-size: 1rem;
-        }
-        textarea {
-            resize: vertical; /* 允許垂直調整大小 */
-            min-height: 80px;
-            font-family: 'Consolas', 'Courier New', monospace; /* 樂譜代碼使用等寬字體 */
-        }
-
-        button {
-            width: 100%;
-            padding: 14px;
-            margin-top: 20px;
-            border-radius: 8px;
-            border: none;
-            background-color: #6c5ce7;
-            color: white;
-            cursor: pointer;
-            font-weight: bold;
-            font-size: 1.1rem;
-            transition: background-color 0.3s ease;
-        }
-
-        button:hover { background-color: #5b4cc4; }
-
-        #qrcode {
-            margin-top: 30px;
-            display: flex;
-            justify-content: center;
-        }
-
-        #typing-text {
-            font-size: 1.4rem;
-            min-height: 2em; /* 確保有足夠的空間顯示文字 */
-            color: #555;
-            margin-bottom: 30px;
-            white-space: pre-wrap; /* 保留換行 */
-            line-height: 1.6;
-        }
-        
-        #player-ui button {
-            background-color: #28a745; /* 播放按鈕使用綠色 */
-        }
-        #player-ui button:hover {
-            background-color: #218838;
-        }
-
+        body { font-family: sans-serif; background: #f4f7f6; display: flex; justify-content: center; align-items: center; min-height: 100vh; margin: 0; }
+        .card { background: white; padding: 30px; border-radius: 15px; box-shadow: 0 4px 20px rgba(0,0,0,0.1); width: 90%; max-width: 400px; text-align: center; }
+        h1 { color: #333; font-size: 1.5rem; }
+        label { display: block; text-align: left; margin: 10px 0 5px; font-weight: bold; }
+        input, textarea { width: 100%; padding: 10px; margin-bottom: 15px; border: 1px solid #ccc; border-radius: 5px; box-sizing: border-box; }
+        button { width: 100%; padding: 12px; background: #6c5ce7; color: white; border: none; border-radius: 5px; cursor: pointer; font-size: 1rem; }
+        button:hover { background: #5b4cc4; }
+        #qrcode { margin-top: 20px; display: flex; justify-content: center; }
         .hidden { display: none; }
+        #message-display { font-size: 1.2rem; margin-bottom: 20px; color: #2d3436; min-height: 1.5em; }
     </style>
 </head>
 <body>
 
-    <div id="generator-ui" class="card hidden">
-        <h1>🎵 製作音樂 QR Code</h1>
-        <label for="userMsg">你的訊息：</label>
-        <input type="text" id="userMsg" placeholder="對收訊者說的話 (例如: 生日快樂!)">
+    <div id="generator-ui" class="card">
+        <h1>製作音樂卡片 🎁</h1>
+        <label>1. 輸入訊息：</label>
+        <input type="text" id="userMsg" placeholder="例如：這首歌送給你！">
         
-        <label for="userAbc">ABC 樂譜代碼：</label>
-        <textarea id="userAbc" placeholder="貼上你的 ABC 樂譜代碼 (例如: CDEF)" rows="6"></textarea>
+        <label>2. 貼上 ABC 樂譜：</label>
+        <textarea id="userAbc" rows="5" placeholder="貼上轉好的 ABC 代碼..."></textarea>
         
         <button onclick="generateQR()">生成 QR Code</button>
         <div id="qrcode"></div>
     </div>
 
     <div id="player-ui" class="card hidden">
-        <div id="typing-text"></div>
-        <button id="playBtn" onclick="startExperience()">🎶 開啟音樂訊息</button>
+        <div id="message-display"></div>
+        <button id="startBtn" onclick="startExperience()">🎶 開啟驚喜</button>
     </div>
 
     <script>
         const urlParams = new URLSearchParams(window.location.search);
-        let currentSynth = null; // 用於儲存當前正在播放的 Tone.js 合成器
 
-        // 頁面載入時判斷模式
-        window.onload = function() {
-            if (urlParams.has("abc")) {
-                document.getElementById("player-ui").classList.remove("hidden");
-            } else {
-                document.getElementById("generator-ui").classList.remove("hidden");
-                // 預填入你的 MML 轉換後的 ABC 代碼
-                document.getElementById("userAbc").value = `X:1
-T:Retro Tune
-M:4/4
-L:1/16
-Q:1/4=113
-K:C treble
-^D5 z ^D5 ^C5 B4 z ^C5 ^D5 z ^C5 ^D5 z ^C5 z ^F5 z ^F5 ^A,4 ^G,4 |
-^G5 z ^A5 z ^G5 z ^F5 z ^G5 z ^A5 z ^G5 z ^F5 z ^D5 z ^D5 ^C5 ^D5 z |
-^F5 z ^G5 z ^F5 z ^G5 z ^F5 z ^G5 z ^F5 z ^D5 z ^C5 z ^D5 z ^F5 z |
-^D5 z ^D5 ^C5 B4 z ^C5 ^D5 z ^C5 ^D5 z ^C5 z ^F5 z ^F5 ^A,4 ^G,4 |
-^G5 z ^A5 z ^G5 z ^F5 z ^G5 z ^A5 z ^G5 z ^F5 z ^D5 z ^D5 ^C5 ^D5 z |
-^F5 z ^G5 z ^F5 z ^G5 z ^F5 z ^G5 z ^F5 z ^D5 z ^C5 z ^D5 z ^F5 z |`;
+        // 初始化：判斷是「製作模式」還是「收訊模式」
+        window.onload = () => {
+            if (urlParams.has('abc')) {
+                document.getElementById('generator-ui').classList.add('hidden');
+                document.getElementById('player-ui').classList.remove('hidden');
             }
         };
 
-        // --- 產生器模式 ---
+        // --- 功能：生成 QR Code ---
         function generateQR() {
-            const baseUrl = window.location.href.split('?')[0]; // 取得當前網址
-            const abcCode = document.getElementById("userAbc").value;
-            const message = document.getElementById("userMsg").value;
-
-            // 使用 encodeURIComponent 確保所有特殊字元都能安全地放入網址
-            const finalUrl = `${baseUrl}?abc=${encodeURIComponent(abcCode)}&t=${encodeURIComponent(message)}`;
+            const msg = document.getElementById('userMsg').value;
+            const abc = document.getElementById('userAbc').value;
+            const baseUrl = window.location.href.split('?')[0];
             
-            // 清空舊的 QR Code 並生成新的
-            document.getElementById("qrcode").innerHTML = "";
-            new QRCode(document.getElementById("qrcode"), {
+            // 將內容編碼進網址
+            const finalUrl = `${baseUrl}?t=${encodeURIComponent(msg)}&abc=${encodeURIComponent(abc)}`;
+            
+            const qrContainer = document.getElementById('qrcode');
+            qrContainer.innerHTML = ""; // 清除舊的
+            new QRCode(qrContainer, {
                 text: finalUrl,
-                width: 200, // 稍微加大 QR Code 尺寸
-                height: 200,
-                colorDark : "#000000",
-                colorLight : "#ffffff",
-                correctLevel : QRCode.CorrectLevel.H
+                width: 200,
+                height: 200
             });
-            alert("QR Code 已生成！掃描即可預覽電子卡片。");
         }
 
-        // --- 播放器模式 ---
+        // --- 功能：播放音樂與文字 ---
         async function startExperience() {
-            await Tone.start(); // 啟動 Tone.js
-            document.getElementById("playBtn").classList.add("hidden"); // 隱藏播放按鈕
+            await Tone.start();
+            document.getElementById('startBtn').classList.add('hidden');
 
-            const rawAbc = urlParams.get("abc");
-            const abcCode = rawAbc ? decodeURIComponent(rawAbc) : "M:4/4\nL:1/8\nCDEF|GABc"; // 預設一段簡短的 ABC
-            const message = urlParams.has("t") ? decodeURIComponent(urlParams.get("t")) : "這是一個音樂訊息！";
-            
-            typeWriter(message, 0); // 啟動打字機效果
-            playABC(abcCode); // 播放音樂
+            const msg = decodeURIComponent(urlParams.get('t') || "");
+            const abc = decodeURIComponent(urlParams.get('abc') || "");
+
+            // 1. 文字打字機效果
+            typeWriter(msg);
+
+            // 2. 播放方波音效 (你要求的復古音色)
+            const synth = new Tone.Synth({ oscillator: { type: "square" } }).toDestination();
+            playAbc(abc, synth);
         }
 
-        // 打字機效果函式
-        function typeWriter(text, i) {
-            if (i < text.length) {
-                document.getElementById("typing-text").innerHTML += text.charAt(i);
-                setTimeout(() => typeWriter(text, i + 1), 70); // 調整打字速度 (毫秒)
-            }
+        function typeWriter(text) {
+            let i = 0;
+            const display = document.getElementById('message-display');
+            const interval = setInterval(() => {
+                display.innerText += text[i];
+                i++;
+                if (i >= text.length) clearInterval(interval);
+            }, 100);
         }
 
-        // 播放 ABC 樂譜的函式
-        function playABC(abcCode) {
-            // 解析 ABC 標頭獲取節拍 (Q:) 和基準音長 (L:)
-            let bpm = 120; // 預設 BPM
-            let defaultNoteLength = 0.25; // 預設 1/4 音符
-
-            const headerLines = abcCode.split('\n');
-            headerLines.forEach(line => {
-                if (line.startsWith('Q:')) {
-                    const qValue = line.substring(2);
-                    const match = qValue.match(/(\d+\/\d+)=(\d+)/);
-                    if (match && match[2]) {
-                        bpm = parseInt(match[2]);
-                    } else if (!isNaN(parseInt(qValue))) {
-                         bpm = parseInt(qValue); // 如果只是 Q:120 這種格式
-                    }
-                }
-                if (line.startsWith('L:')) {
-                    const lValue = line.substring(2);
-                    if (lValue === '1/16') defaultNoteLength = 0.125;
-                    else if (lValue === '1/8') defaultNoteLength = 0.25;
-                    else if (lValue === '1/4') defaultNoteLength = 0.5;
+        // 簡易 ABC 播放邏輯 (可根據需求擴充)
+        function playAbc(abc, synth) {
+            const now = Tone.now();
+            // 這裡簡單解析音符，實際複雜樂譜需配合更完整的解析器
+            const notes = abc.replace(/\s/g, "").split(""); 
+            notes.forEach((n, index) => {
+                if (n.match(/[A-Ga-g]/)) {
+                    synth.triggerAttackRelease(n + "4", "8n", now + index * 0.2);
                 }
             });
-            Tone.Transport.bpm.value = bpm; // 設定全局 BPM
-
-            currentSynth = new Tone.Synth({
-                oscillator: { type: "square" }, // 方波音色
-                envelope: {
-                    attack: 0.01,
-                    decay: 0.2,
-                    sustain: 0.05,
-                    release: 0.5
-                }
-            }).toDestination();
-
-            const notes = parseAbcToToneNotes(abcCode, defaultNoteLength);
-            
-            // 使用 Tone.Part 來更精確地安排音符
-            const part = new Tone.Part((time, value) => {
-                currentSynth.triggerAttackRelease(value.pitch, value.duration, time);
-            }, notes).start(0);
-
-            Tone.Transport.loop = true; // 讓音樂循環播放
-            Tone.Transport.loopEnd = notes.length > 0 ? notes[notes.length - 1].time + 1 : "4m"; // 循環結束點
-            Tone.Transport.start();
-        }
-
-        // --- ABC 轉換 Tone.js 音符邏輯 ---
-        function parseAbcToToneNotes(abcCode, defaultNoteLength) {
-            const toneNotes = [];
-            let currentTime = 0; // 追蹤當前時間點
-            let currentOctave = 4; // 預設八度
-            let currentBaseNoteLength = defaultNoteLength; // 從 L: 設定
-
-            const noteMap = { 'C': 0, 'D': 2, 'E': 4, 'F': 5, 'G': 7, 'A': 9, 'B': 11 };
-            const abcLines = abcCode.split('\n');
-            
-            abcLines.forEach(line => {
-                // 跳過標頭和空行
-                if (line.startsWith('X:') || line.startsWith('T:') || line.startsWith('M:') ||
-                    line.startsWith('L:') || line.startsWith('Q:') || line.startsWith('K:') ||
-                    line.trim() === '') {
-                    return;
-                }
-
-                for (let i = 0; i < line.length; i++) {
-                    let char = line[i];
-                    let accidental = 0; // 升降記號: -1 降, 1 升, 0 自然
-                    let noteValue = -1; // 音高值 (0=C, 1=C#, ...)
-                    let durationMultiplier = 1; // 音長倍數
-
-                    // 處理升降記號
-                    if (char === '^') { accidental = 1; char = line[++i]; } // 升號
-                    else if (char === '_') { accidental = -1; char = line[++i]; } // 降號
-                    else if (char === '=') { accidental = 0; char = line[++i]; } // 還原
-
-                    // 處理音符或休止符
-                    if (noteMap[char.toUpperCase()] !== undefined) {
-                        noteValue = noteMap[char.toUpperCase()];
-                        if (char.toLowerCase() === char) { // 小寫字母表示高八度
-                            currentOctave = 5; 
-                        } else { // 大寫字母表示低八度
-                            currentOctave = 4;
-                        }
-                    } else if (char === 'z') { // 休止符
-                        noteValue = -2; // 特殊標記為休止符
-                    } else if (char === '<') { // 舊版 ABC 可能用 < >
-                         currentOctave--; continue; // 降八度
-                    } else if (char === '>') {
-                         currentOctave++; continue; // 升八度
-                    }
-
-                    // 處理音長
-                    let numStr = "";
-                    while (i + 1 < line.length && !isNaN(parseInt(line[i+1]))) {
-                        numStr += line[++i];
-                    }
-                    if (numStr !== "") durationMultiplier = parseInt(numStr);
-                    if (line[i+1] === '/') { // 處理分數音符 (如 C/2, C//2)
-                        i++;
-                        let divisorStr = "";
-                        while (i + 1 < line.length && !isNaN(parseInt(line[i+1]))) {
-                            divisorStr += line[++i];
-                        }
-                        let divisor = divisorStr !== "" ? parseInt(divisorStr) : 2;
-                        durationMultiplier = durationMultiplier / divisor;
-                    }
-
-                    // 將音高轉換為 Tone.js 格式
-                    if (noteValue !== -1 && noteValue !== -2) {
-                        let finalPitch = Tone.Midi(noteValue + accidental + (currentOctave * 12)).toNote();
-                        toneNotes.push({
-                            time: currentTime,
-                            pitch: finalPitch,
-                            duration: currentBaseNoteLength * durationMultiplier
-                        });
-                    }
-
-                    // 計算下一個音符的時間點
-                    currentTime += currentBaseNoteLength * durationMultiplier;
-                }
-            });
-            return toneNotes;
         }
     </script>
 </body>
