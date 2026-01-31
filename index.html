@@ -1,43 +1,174 @@
 <!DOCTYPE html>
-<html>
+<html lang="zh-Hant">
 <head>
-    <title>音樂 QR Code 產生器</title>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>音樂訊息盒子 🎵</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/tone/14.8.49/Tone.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+    
     <style>
-        body { font-family: sans-serif; text-align: center; padding: 50px; background: #f8f9fa; }
-        #qrcode { margin-top: 20px; display: flex; justify-content: center; }
-        input { padding: 10px; width: 250px; border-radius: 5px; border: 1px solid #ddd; }
-        button { padding: 10px 20px; background: #007bff; color: white; border: none; border-radius: 5px; cursor: pointer; }
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: #f0f2f5;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            margin: 0;
+        }
+
+        /* 💌 小卡片樣式 */
+        .card {
+            background: white;
+            padding: 40px;
+            border-radius: 20px; /* 我們討論過的圓角 */
+            box-shadow: 0 10px 30px rgba(0,0,0,0.1);
+            width: 350px;
+            text-align: center;
+            transition: background-color 0.5s ease;
+        }
+
+        h1 { color: #333; font-size: 1.5rem; }
+        input, button {
+            width: 100%;
+            padding: 12px;
+            margin-top: 10px;
+            border-radius: 8px;
+            border: 1px solid #ddd;
+            box-sizing: border-box;
+        }
+
+        button {
+            background-color: #6c5ce7;
+            color: white;
+            border: none;
+            cursor: pointer;
+            font-weight: bold;
+        }
+
+        button:hover { background-color: #5b4cc4; }
+
+        #qrcode {
+            margin-top: 20px;
+            display: flex;
+            justify-content: center;
+        }
+
+        #typing-text {
+            font-size: 1.2rem;
+            min-height: 1.5em;
+            color: #555;
+            margin-bottom: 20px;
+        }
+
+        .hidden { display: none; }
     </style>
 </head>
 <body>
 
-    <h2>🎵 製作你的音樂 QR Code</h2>
-    <input type="text" id="userMsg" placeholder="輸入訊息 (例如：生日快樂)">
-    <button onclick="generateQR()">產生 QR Code</button>
+    <div id="generator-ui" class="card hidden">
+        <h1>🎵 製作音樂 QR Code</h1>
+        <input type="text" id="userAbc" placeholder="輸入旋律 (例如: G2G2A2G2c2B4)" value="G2G2A2G2c2B4">
+        <input type="text" id="userMsg" placeholder="想說的話...">
+        <label style="display: block; margin-top: 10px;">
+            <input type="checkbox" id="loopCheck" style="width: auto;"> 重複播放
+        </label>
+        <button onclick="generateQR()">產生專屬 QR Code</button>
+        <div id="qrcode"></div>
+    </div>
 
-    <div id="qrcode"></div>
+    <div id="player-ui" class="card hidden">
+        <div id="typing-text"></div>
+        <button id="playBtn" onclick="startExperience()">🎶 開啟音樂訊息</button>
+    </div>
 
     <script>
+        const urlParams = new URLSearchParams(window.location.search);
+
+        // 判斷該顯示哪個介面
+        window.onload = () => {
+            if (urlParams.has("abc")) {
+                document.getElementById("player-ui").classList.remove("hidden");
+            } else {
+                document.getElementById("generator-ui").classList.remove("hidden");
+            }
+        };
+
+        // --- 產生器邏輯 ---
         function generateQR() {
-            const baseUrl = "https://kuochili-ops.github.io/Music_box/";
-            const melody = "G2G2A2G2c2B4"; // 這是生日快樂歌的代碼
+            const baseUrl = window.location.href.split('?')[0];
+            const abc = document.getElementById("userAbc").value;
+            const msg = document.getElementById("userMsg").value;
+            const loop = document.getElementById("loopCheck").checked ? "1" : "0";
+
+            const finalUrl = `${baseUrl}?abc=${abc}&t=${encodeURIComponent(msg)}&l=${loop}`;
             
-            // 取得使用者輸入的文字
-            const message = document.getElementById("userMsg").value;
-
-            // 組合完整的網址 🔗
-            const finalUrl = baseUrl + "?abc=" + melody + "&t=" + encodeURIComponent(message);
-
-            // 清除之前的 QR Code
             document.getElementById("qrcode").innerHTML = "";
-            
-            // 繪製新的 QR Code
             new QRCode(document.getElementById("qrcode"), {
                 text: finalUrl,
-                width: 200,
-                height: 200
+                width: 180,
+                height: 180
             });
+        }
+
+        // --- 播放器邏輯 ---
+        async function startExperience() {
+            await Tone.start();
+            document.getElementById("playBtn").classList.add("hidden");
+            
+            const message = urlParams.get("t") || "收到一個音樂訊息！";
+            const abc = urlParams.get("abc");
+            const isLoop = urlParams.get("l") === "1";
+
+            // 啟動打字機 ⌨️
+            typeWriter(message, 0);
+            
+            // 播放音樂並變色 🌈
+            playMusic(abc, isLoop);
+        }
+
+        function typeWriter(text, i) {
+            if (i < text.length) {
+                document.getElementById("typing-text").innerHTML += text.charAt(i);
+                setTimeout(() => typeWriter(text, i + 1), 150);
+            }
+        }
+
+        function playMusic(abc, loop) {
+            const synth = new Tone.Synth().toDestination();
+            const notes = parseABC(abc);
+            const card = document.querySelector("#player-ui");
+
+            // 音樂播放時變換背景色
+            card.style.backgroundColor = "lavender";
+
+            const part = new Tone.Part((time, note) => {
+                synth.triggerAttackRelease(note.pitch, note.duration, time);
+            }, notes);
+
+            part.loop = loop;
+            part.loopEnd = notes[notes.length - 1].time + 1;
+            part.start(0);
+            Tone.Transport.start();
+        }
+
+        // 簡單的 ABC 旋律解析器
+        function parseABC(abc) {
+            const notes = [];
+            const pitchMap = { 'C': 'C4', 'D': 'D4', 'E': 'E4', 'F': 'F4', 'G': 'G4', 'A': 'A4', 'B': 'B4', 'c': 'C5' };
+            let currentTime = 0;
+
+            for (let i = 0; i < abc.length; i++) {
+                let char = abc[i];
+                if (pitchMap[char]) {
+                    let duration = parseInt(abc[i+1]) || 1;
+                    notes.push({ time: currentTime, pitch: pitchMap[char], duration: duration * 0.2 });
+                    currentTime += duration * 0.3;
+                    if (!isNaN(abc[i+1])) i++;
+                }
+            }
+            return notes;
         }
     </script>
 </body>
