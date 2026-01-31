@@ -3,107 +3,139 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>音樂訊息 QR Code 產生器 🎵</title>
+    <title>音樂訊息 QR 產生器 🎵</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/tone/14.8.49/Tone.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
     <style>
-        body { font-family: sans-serif; background: #f4f7f6; display: flex; justify-content: center; align-items: center; min-height: 100vh; margin: 0; }
-        .card { background: white; padding: 30px; border-radius: 15px; box-shadow: 0 4px 20px rgba(0,0,0,0.1); width: 90%; max-width: 400px; text-align: center; }
-        h1 { color: #333; font-size: 1.5rem; }
-        label { display: block; text-align: left; margin: 10px 0 5px; font-weight: bold; }
-        input, textarea { width: 100%; padding: 10px; margin-bottom: 15px; border: 1px solid #ccc; border-radius: 5px; box-sizing: border-box; }
-        button { width: 100%; padding: 12px; background: #6c5ce7; color: white; border: none; border-radius: 5px; cursor: pointer; font-size: 1rem; }
-        button:hover { background: #5b4cc4; }
-        #qrcode { margin-top: 20px; display: flex; justify-content: center; }
+        body { font-family: -apple-system, sans-serif; background: #f0f2f5; padding: 20px; display: flex; justify-content: center; }
+        .container { background: white; padding: 30px; border-radius: 20px; box-shadow: 0 10px 25px rgba(0,0,0,0.1); width: 100%; max-width: 500px; }
+        h2 { color: #333; margin-top: 0; border-left: 5px solid #6c5ce7; padding-left: 10px; }
+        
+        /* 輸入區域樣式 */
+        .input-group { margin-bottom: 20px; }
+        label { display: block; margin-bottom: 8px; font-weight: bold; color: #555; }
+        input, textarea { width: 100%; padding: 12px; border: 1px solid #ddd; border-radius: 8px; box-sizing: border-box; font-size: 16px; }
+        textarea { font-family: monospace; resize: vertical; }
+        
+        /* 按鈕樣式 */
+        .btn-group { display: flex; gap: 10px; }
+        button { flex: 1; padding: 15px; border: none; border-radius: 8px; cursor: pointer; font-weight: bold; font-size: 16px; transition: 0.3s; }
+        .btn-generate { background: #6c5ce7; color: white; }
+        .btn-preview { background: #00b894; color: white; }
+        button:hover { opacity: 0.9; transform: translateY(-2px); }
+
+        /* 預覽與 QR Code 區域 */
+        .result-section { margin-top: 30px; padding-top: 20px; border-top: 2px dashed #eee; text-align: center; }
+        #qrcode { display: inline-block; margin: 20px 0; padding: 10px; background: white; border: 1px solid #eee; }
+        #typing-display { font-size: 1.2rem; min-height: 1.5em; color: #2d3436; margin: 20px 0; font-weight: 500; }
+        
         .hidden { display: none; }
-        #message-display { font-size: 1.2rem; margin-bottom: 20px; color: #2d3436; min-height: 1.5em; }
     </style>
 </head>
 <body>
 
-    <div id="generator-ui" class="card">
-        <h1>製作音樂卡片 🎁</h1>
-        <label>1. 輸入訊息：</label>
-        <input type="text" id="userMsg" placeholder="例如：這首歌送給你！">
-        
-        <label>2. 貼上 ABC 樂譜：</label>
-        <textarea id="userAbc" rows="5" placeholder="貼上轉好的 ABC 代碼..."></textarea>
-        
-        <button onclick="generateQR()">生成 QR Code</button>
+<div class="container">
+    <h2>1. 編輯內容 ✍️</h2>
+    <div class="input-group">
+        <label>訊息文字：</label>
+        <input type="text" id="userMsg" placeholder="輸入你想說的話...">
+    </div>
+    
+    <div class="input-group">
+        <label>ABC 樂譜代碼：</label>
+        <textarea id="userAbc" rows="6" placeholder="貼上 ABC 代碼..."></textarea>
+    </div>
+
+    <div class="btn-group">
+        <button class="btn-generate" onclick="generateAndShow()">生成 QR Code 📲</button>
+        <button class="btn-preview" onclick="previewCard()">預覽卡片 👁️</button>
+    </div>
+
+    <div id="result-area" class="result-section hidden">
+        <h2>2. 預覽結果 🎁</h2>
+        <div id="typing-display"></div>
         <div id="qrcode"></div>
+        <p style="font-size: 0.8rem; color: #999;">掃描上方 QR Code 即可傳送卡片</p>
     </div>
+</div>
 
-    <div id="player-ui" class="card hidden">
-        <div id="message-display"></div>
-        <button id="startBtn" onclick="startExperience()">🎶 開啟驚喜</button>
-    </div>
+<script>
+    // 預填你提供的那段轉換後的 ABC 代碼
+    const defaultABC = "X:1\nM:4/4\nL:1/16\nQ:113\nK:C\n^d z ^d ^c B2 ^c z d2 ^c z d2 | z2 z2 ^c2 ^f z ^f2 ^A, z G,4";
+    document.getElementById('userAbc').value = defaultABC;
+    document.getElementById('userMsg').value = "這是一段專屬你的音樂訊息！";
 
-    <script>
-        const urlParams = new URLSearchParams(window.location.search);
+    // 生成 QR Code 並顯示結果區域
+    function generateAndShow() {
+        const msg = document.getElementById('userMsg').value;
+        const abc = document.getElementById('userAbc').value;
+        const baseUrl = window.location.href.split('?')[0];
+        
+        // 封裝成網址
+        const finalUrl = `${baseUrl}?t=${encodeURIComponent(msg)}&abc=${encodeURIComponent(abc)}`;
+        
+        // 顯示結果區域
+        document.getElementById('result-area').classList.remove('hidden');
+        
+        // 清除舊的 QR Code
+        document.getElementById('qrcode').innerHTML = "";
+        new QRCode(document.getElementById('qrcode'), {
+            text: finalUrl,
+            width: 180,
+            height: 180
+        });
+        
+        window.scrollTo(0, document.body.scrollHeight);
+    }
 
-        // 初始化：判斷是「製作模式」還是「收訊模式」
-        window.onload = () => {
-            if (urlParams.has('abc')) {
-                document.getElementById('generator-ui').classList.add('hidden');
-                document.getElementById('player-ui').classList.remove('hidden');
-            }
-        };
+    // 本地預覽功能
+    async function previewCard() {
+        await Tone.start();
+        const msg = document.getElementById('userMsg').value;
+        const abc = document.getElementById('userAbc').value;
+        
+        document.getElementById('result-area').classList.remove('hidden');
+        document.getElementById('typing-display').innerText = "";
+        
+        // 1. 啟動打字機
+        typeWriter(msg);
+        
+        // 2. 播放音樂 (使用方波)
+        playMusic(abc);
+    }
 
-        // --- 功能：生成 QR Code ---
-        function generateQR() {
-            const msg = document.getElementById('userMsg').value;
-            const abc = document.getElementById('userAbc').value;
-            const baseUrl = window.location.href.split('?')[0];
-            
-            // 將內容編碼進網址
-            const finalUrl = `${baseUrl}?t=${encodeURIComponent(msg)}&abc=${encodeURIComponent(abc)}`;
-            
-            const qrContainer = document.getElementById('qrcode');
-            qrContainer.innerHTML = ""; // 清除舊的
-            new QRCode(qrContainer, {
-                text: finalUrl,
-                width: 200,
-                height: 200
-            });
-        }
+    function typeWriter(text) {
+        let i = 0;
+        const display = document.getElementById('typing-display');
+        const timer = setInterval(() => {
+            display.innerText += text[i];
+            i++;
+            if (i >= text.length) clearInterval(timer);
+        }, 100);
+    }
 
-        // --- 功能：播放音樂與文字 ---
-        async function startExperience() {
-            await Tone.start();
-            document.getElementById('startBtn').classList.add('hidden');
+    function playMusic(abc) {
+        const synth = new Tone.Synth({ oscillator: { type: "square" } }).toDestination();
+        const now = Tone.now();
+        
+        // 簡易解析音符 (抓取大寫 A-G 與 ^ 升號)
+        const notes = abc.match(/\^?[A-Ga-g]/g) || [];
+        notes.forEach((n, i) => {
+            // 轉換 ABC 格式為 Tone.js 格式
+            let toneNote = n.replace('^', '#') + "4"; 
+            synth.triggerAttackRelease(toneNote, "16n", now + i * 0.15);
+        });
+    }
 
-            const msg = decodeURIComponent(urlParams.get('t') || "");
-            const abc = decodeURIComponent(urlParams.get('abc') || "");
+    // 如果是掃描 QR Code 進來的，直接進入播放模式
+    const urlParams = new URLSearchParams(window.location.search);
+    if (urlParams.has('abc')) {
+        document.querySelector('h2').innerText = "收到音樂訊息！";
+        document.querySelector('.input-group:nth-child(2)').style.display = 'none';
+        document.querySelector('.input-group:nth-child(3)').style.display = 'none';
+        document.querySelector('.btn-group').innerHTML = '<button class="btn-preview" onclick="previewCard()">🎶 開啟訊息</button>';
+    }
+</script>
 
-            // 1. 文字打字機效果
-            typeWriter(msg);
-
-            // 2. 播放方波音效 (你要求的復古音色)
-            const synth = new Tone.Synth({ oscillator: { type: "square" } }).toDestination();
-            playAbc(abc, synth);
-        }
-
-        function typeWriter(text) {
-            let i = 0;
-            const display = document.getElementById('message-display');
-            const interval = setInterval(() => {
-                display.innerText += text[i];
-                i++;
-                if (i >= text.length) clearInterval(interval);
-            }, 100);
-        }
-
-        // 簡易 ABC 播放邏輯 (可根據需求擴充)
-        function playAbc(abc, synth) {
-            const now = Tone.now();
-            // 這裡簡單解析音符，實際複雜樂譜需配合更完整的解析器
-            const notes = abc.replace(/\s/g, "").split(""); 
-            notes.forEach((n, index) => {
-                if (n.match(/[A-Ga-g]/)) {
-                    synth.triggerAttackRelease(n + "4", "8n", now + index * 0.2);
-                }
-            });
-        }
-    </script>
 </body>
 </html>
