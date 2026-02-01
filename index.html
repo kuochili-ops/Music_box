@@ -3,66 +3,55 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>音樂訊息產生器 Pro 🎹</title>
+    <title>音樂訊息盒 Pro - 修正版</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/tone/14.8.49/Tone.js"></script>
     <script src="https://unpkg.com/@tonejs/midi"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
     <style>
         :root { --primary: #6c5ce7; --secondary: #00b894; --bg: #f8f9fa; }
-        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; background: var(--bg); display: flex; justify-content: center; padding: 20px; }
-        .container { background: white; padding: 25px; border-radius: 24px; box-shadow: 0 12px 40px rgba(0,0,0,0.12); width: 100%; max-width: 500px; }
-        .section { border-bottom: 2px solid #f1f2f6; margin-bottom: 20px; padding-bottom: 20px; }
-        h2 { font-size: 1.25rem; color: #2d3436; margin-top: 0; display: flex; align-items: center; gap: 8px; }
-        label { display: block; margin: 15px 0 8px; font-weight: bold; color: #636e72; font-size: 0.9rem; }
-        input, textarea, select { width: 100%; padding: 12px; border: 1px solid #dfe6e9; border-radius: 12px; box-sizing: border-box; font-size: 15px; background: #fff; }
-        textarea { font-family: 'Consolas', 'Monaco', monospace; height: 120px; line-height: 1.5; }
+        body { font-family: -apple-system, sans-serif; background: var(--bg); display: flex; justify-content: center; padding: 20px; }
+        .container { background: white; padding: 25px; border-radius: 20px; box-shadow: 0 10px 30px rgba(0,0,0,0.1); width: 100%; max-width: 500px; }
+        .section { border-bottom: 2px solid #eee; margin-bottom: 20px; padding-bottom: 20px; }
+        label { display: block; margin: 15px 0 8px; font-weight: bold; color: #555; }
+        input, textarea, select { width: 100%; padding: 12px; border: 1px solid #ddd; border-radius: 10px; box-sizing: border-box; font-size: 15px; }
+        textarea { font-family: 'Consolas', monospace; height: 120px; }
         .btn-group { display: flex; gap: 10px; margin-top: 15px; }
-        button { flex: 1; padding: 14px; border: none; border-radius: 12px; cursor: pointer; font-weight: bold; font-size: 16px; transition: all 0.2s; }
+        button { flex: 1; padding: 12px; border: none; border-radius: 10px; cursor: pointer; font-weight: bold; transition: 0.2s; }
         .btn-midi { background: #ff7675; color: white; }
         .btn-pre { background: var(--secondary); color: white; }
         .btn-gen { background: var(--primary); color: white; }
-        button:hover { opacity: 0.9; transform: translateY(-1px); }
-        button:active { transform: translateY(0); }
-        #track-selector { display: none; background: #f9f9fb; padding: 15px; border-radius: 14px; margin-top: 10px; border: 1px solid #eee; }
-        #result-area { margin-top: 25px; text-align: center; display: none; }
-        #typing-text { font-size: 1.4rem; margin: 20px 0; font-weight: 700; color: #2d3436; min-height: 1.6em; word-break: break-all; }
-        #qrcode-container { display: inline-block; padding: 10px; background: white; border-radius: 10px; border: 1px solid #eee; }
-        .hint { font-size: 0.8rem; color: #95a5a6; margin-top: 5px; }
+        #track-selector { display: none; margin-top: 10px; background: #f1f2f6; padding: 15px; border-radius: 10px; }
+        #typing-text { font-size: 1.4rem; margin: 20px 0; font-weight: 600; text-align: center; min-height: 1.5em; }
+        #qrcode-container { text-align: center; padding: 10px; }
     </style>
 </head>
 <body>
 
 <div class="container">
     <div class="section">
-        <h2>🎹 MIDI 轉 ABC 工具</h2>
-        <label>上傳 MIDI 檔案：</label>
+        <h2>🎹 MIDI 轉 ABC (修正蜂鳴音)</h2>
         <input type="file" id="midiInput" accept=".mid,.midi" onchange="handleMidiUpload()">
-        
         <div id="track-selector">
-            <label>選擇主旋律軌道：</label>
             <select id="midiTracks"></select>
-            <div class="hint">※ 已優化八度解析並過濾背景蜂鳴音</div>
             <div class="btn-group">
-                <button class="btn-midi" onclick="playMidiPreview()">👂 試聽軌道</button>
-                <button class="btn-gen" onclick="convertToAbc()">✅ 轉為 ABC</button>
+                <button class="btn-midi" onclick="playMidiPreview()">👂 試聽</button>
+                <button class="btn-gen" onclick="convertToAbc()">✅ 轉換</button>
             </div>
         </div>
     </div>
 
     <div class="section">
-        <label>💌 留言內容：</label>
-        <input type="text" id="userMsg" value="這是一段完美的旋律！">
-        
-        <label>🎼 ABC 樂譜代碼：</label>
-        <textarea id="userAbc" placeholder="手寫或由 MIDI 轉換..."></textarea>
-        
+        <label>💬 留言：</label>
+        <input type="text" id="userMsg" value="這段旋律已經修正音階！">
+        <label>🎼 ABC 代碼：</label>
+        <textarea id="userAbc"></textarea>
         <div class="btn-group">
-            <button class="btn-pre" onclick="startPreviewLoop()">👁️ 預覽循環播放</button>
+            <button class="btn-pre" onclick="startPreview()">👁️ 循環播放預覽</button>
             <button class="btn-gen" onclick="generateQR()">📲 生成 QR</button>
         </div>
     </div>
 
-    <div id="result-area">
+    <div id="result-ui">
         <div id="typing-text"></div>
         <div id="qrcode-container"></div>
     </div>
@@ -70,179 +59,125 @@
 
 <script>
     let currentMidi = null;
-    let previewSynth = null;
-    let typingTimer = null;
-    let transportLoop = null;
+    let typingInterval = null;
 
-    // --- MIDI 處理 ---
+    // --- MIDI 轉檔邏輯 ---
     async function handleMidiUpload() {
         const file = document.getElementById('midiInput').files[0];
         if (!file) return;
         const arrayBuffer = await file.arrayBuffer();
         currentMidi = new Midi(arrayBuffer);
-
         const select = document.getElementById('midiTracks');
         select.innerHTML = "";
         currentMidi.tracks.forEach((track, index) => {
             if (track.notes.length > 0) {
-                const option = document.createElement('option');
-                option.value = index;
-                option.text = `軌道 ${index + 1}: ${track.name || 'Instrument'} (${track.notes.length} 音符)`;
-                select.appendChild(option);
+                const opt = document.createElement('option');
+                opt.value = index;
+                opt.text = `軌道 ${index+1}: ${track.name || '樂器'} (${track.notes.length} 音符)`;
+                select.appendChild(opt);
             }
         });
         document.getElementById('track-selector').style.display = 'block';
     }
 
-    async function playMidiPreview() {
-        await Tone.start();
-        if (previewSynth) previewSynth.dispose();
-        previewSynth = new Tone.PolySynth(Tone.Synth).toDestination();
-        const track = currentMidi.tracks[document.getElementById('midiTracks').value];
-        const now = Tone.now();
-        // 試聽前 10 秒
-        track.notes.forEach(n => {
-            if (n.time < 10) previewSynth.triggerAttackRelease(n.name, n.duration, now + n.time, n.velocity);
-        });
-    }
-
     function convertToAbc() {
         const track = currentMidi.tracks[document.getElementById('midiTracks').value];
         let abc = "X:1\nM:4/4\nL:1/16\nQ:120\nK:C\n";
-        let lastEndTime = 0;
+        let lastEnd = 0;
 
-        // 核心去雜訊與精確八度判定
-        const cleanNotes = track.notes.filter(n => n.duration > 0.05);
-
-        cleanNotes.forEach(note => {
-            const startTime = note.time;
-            const waitTime = startTime - lastEndTime;
-            
-            // 處理休止符
-            if (waitTime > 0.05) {
-                let zCount = Math.round(waitTime * 8); 
-                if (zCount > 0) abc += "z" + (zCount > 1 ? zCount : "") + " ";
+        track.notes.forEach(note => {
+            const wait = note.time - lastEnd;
+            if (wait > 0.05) {
+                let z = Math.round(wait * 8);
+                if (z > 0) abc += "z" + (z > 1 ? z : "") + " ";
             }
+            // 精確處理 ABC 八度與升降
+            let p = note.pitch.replace(/[0-9]/g, '').replace('#', '^');
+            let oct = note.octave;
+            let finalNote = p;
+            if (oct === 4) finalNote = p.toUpperCase();
+            else if (oct === 5) finalNote = p.toLowerCase();
+            else if (oct < 4) finalNote = p.toUpperCase() + ",".repeat(4-oct);
+            else finalNote = p.toLowerCase() + "'".repeat(oct-5);
 
-            let noteBase = note.pitch.replace(/[0-9#b]/g, '');
-            let isSharp = note.pitch.includes('#');
-            let octave = note.octave;
-            let finalNote = isSharp ? "^" : "";
-
-            // ABC 八度語法修正
-            if (octave === 4) {
-                finalNote += noteBase.toUpperCase();
-            } else if (octave === 5) {
-                finalNote += noteBase.toLowerCase();
-            } else if (octave < 4) {
-                let commas = ",".repeat(4 - octave);
-                finalNote += noteBase.toUpperCase() + commas;
-            } else {
-                let apostrophes = "'".repeat(octave - 5);
-                finalNote += noteBase.toLowerCase() + apostrophes;
-            }
-
-            let durCount = Math.round(note.duration * 8);
-            abc += finalNote + (durCount > 1 ? durCount : "") + " ";
-            lastEndTime = startTime + note.duration;
+            let dur = Math.round(note.duration * 8);
+            abc += finalNote + (dur > 1 ? dur : "") + " ";
+            lastEnd = note.time + note.duration;
         });
-
-        document.getElementById('userAbc').value = abc.trim();
-        alert("音階精準轉換完成！已填入下方編輯框。");
+        document.getElementById('userAbc').value = abc;
     }
 
-    // --- 播放與重複邏輯 ---
-    async function startPreviewLoop() {
+    // --- 關鍵修正：ABC 解析播放器 ---
+    async function startPreview() {
         await Tone.start();
         Tone.Transport.stop();
         Tone.Transport.cancel();
-        if (typingTimer) clearInterval(typingTimer);
-        
-        document.getElementById('result-area').style.display = 'block';
-        const msg = document.getElementById('userMsg').value;
-        const abc = document.getElementById('userAbc').value;
+        if (typingInterval) clearInterval(typingInterval);
 
-        // 使用 8-bit 方波音色
+        const abc = document.getElementById('userAbc').value;
+        const msg = document.getElementById('userMsg').value;
         const synth = new Tone.Synth({ 
             oscillator: { type: "square" },
-            envelope: { attack: 0.005, decay: 0.1, sustain: 0.3, release: 0.8 }
+            envelope: { attack: 0.01, decay: 0.1, sustain: 0.2, release: 0.5 }
         }).toDestination();
 
-        // 解析 ABC (支援 1/16 為底的格式)
-        const tokens = abc.match(/([\^z]?[A-Ga-g][,']*[\d\/]*|z[\d\/]*)/g) || [];
-        let totalTicks = 0;
-        const tickTime = 0.125; // 每一個 L:1/16 的時長 (秒)
+        // 正則解析：抓取 [升號] + [音名] + [八度標記] + [時值]
+        const tokens = abc.match(/(\^?[A-Ga-g][,']*[\d]*|z[\d]*)/g) || [];
+        let totalTime = 0;
+        const tick = 0.125; // 1/16 的時長
 
-        const melody = tokens.map(token => {
-            const isRest = token.startsWith('z');
-            const pitchPart = token.match(/[\^]?[A-Ga-g][,']*/);
-            const durMatch = token.match(/\d+/);
-            const duration = durMatch ? parseInt(durMatch[0]) : 1;
+        const melody = tokens.map(t => {
+            const durMatch = t.match(/\d+/);
+            const dur = durMatch ? parseInt(durMatch[0]) : 1;
+            const isRest = t.startsWith('z');
+            const pitchStr = isRest ? null : parseAbcToTone(t.replace(/\d+/g, ''));
             
-            const noteData = {
-                time: totalTicks * tickTime,
-                pitch: (!isRest && pitchPart) ? pitchPart[0] : null,
-                dur: (duration * tickTime * 0.9) + "s",
-                step: duration
-            };
-            totalTicks += duration;
-            return noteData;
+            const obj = { time: totalTime * tick, pitch: pitchStr, duration: (dur * tick * 0.8) + "s", step: dur };
+            totalTime += dur;
+            return obj;
         });
 
-        // 建立重複播放環
-        const loopInterval = totalTicks * tickTime;
-        
-        Tone.Transport.scheduleRepeat((time) => {
-            // 音樂部分
-            melody.forEach(n => {
-                if (n.pitch) {
-                    // ABC 語法轉 Tone.js 音高 (粗略處理，僅供預覽)
-                    let p = n.pitch.replace('^', '#');
-                    let finalP = p.toUpperCase() + (p === p.toLowerCase() ? "5" : "4");
-                    synth.triggerAttackRelease(finalP, n.dur, time + n.time);
-                }
-            });
+        const part = new Tone.Part((time, n) => {
+            if (n.pitch) synth.triggerAttackRelease(n.pitch, n.duration, time);
+        }, melody).start(0);
 
-            // 打字機重置同步
+        // 循環邏輯
+        Tone.Transport.scheduleRepeat(time => {
             Tone.Draw.schedule(() => {
-                resetTypewriter(msg);
+                const el = document.getElementById('typing-text');
+                el.innerText = "";
+                let i = 0;
+                typingInterval = setInterval(() => {
+                    el.innerText += msg[i]; i++;
+                    if (i >= msg.length) clearInterval(typingInterval);
+                }, 100);
             }, time);
-        }, loopInterval);
+        }, totalTime * tick);
 
         Tone.Transport.start();
     }
 
-    function resetTypewriter(text) {
-        if (typingTimer) clearInterval(typingTimer);
-        const el = document.getElementById('typing-text');
-        el.innerText = "";
-        let i = 0;
-        typingTimer = setInterval(() => {
-            el.innerText += text[i];
-            i++;
-            if (i >= text.length) clearInterval(typingTimer);
-        }, 120);
+    // ABC 轉 Tone.js 音高 (C -> C4, c -> C5, C, -> C3)
+    function parseAbcToTone(abcNote) {
+        if (!abcNote) return null;
+        let sharp = abcNote.includes('^') ? '#' : '';
+        let note = abcNote.match(/[A-Ga-g]/)[0];
+        let oct = (note === note.toLowerCase()) ? 5 : 4;
+        
+        const commas = (abcNote.match(/,/g) || []).length;
+        const apostrophes = (abcNote.match(/'/g) || []).length;
+        oct = oct - commas + apostrophes;
+        
+        return note.toUpperCase() + sharp + oct;
     }
 
     function generateQR() {
-        const msg = document.getElementById('userMsg').value;
-        const abc = document.getElementById('userAbc').value;
-        const finalUrl = `${window.location.origin}${window.location.pathname}?t=${encodeURIComponent(msg)}&abc=${encodeURIComponent(abc)}`;
-        
+        const url = `${window.location.origin}${window.location.pathname}?t=${encodeURIComponent(document.getElementById('userMsg').value)}&abc=${encodeURIComponent(document.getElementById('userAbc').value)}`;
         const container = document.getElementById('qrcode-container');
         container.innerHTML = "";
-        new QRCode(container, { text: finalUrl, width: 200, height: 200 });
-        document.getElementById('result-area').style.display = 'block';
+        new QRCode(container, { text: url, width: 180, height: 180 });
         alert("QR Code 已生成！");
     }
-
-    // 自動偵測 URL 參數 (供收件者使用)
-    const params = new URLSearchParams(window.location.search);
-    if (params.has('abc')) {
-        document.getElementById('userMsg').value = decodeURIComponent(params.get('t'));
-        document.getElementById('userAbc').value = decodeURIComponent(params.get('abc'));
-    }
 </script>
-
 </body>
 </html>
