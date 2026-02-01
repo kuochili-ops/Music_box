@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>音樂訊息盒 Pro - 修正版</title>
+    <title>音樂訊息盒 Pro 🎹</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/tone/14.8.49/Tone.js"></script>
     <script src="https://unpkg.com/@tonejs/midi"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
@@ -20,16 +20,19 @@
         .btn-midi { background: #ff7675; color: white; }
         .btn-pre { background: var(--secondary); color: white; }
         .btn-gen { background: var(--primary); color: white; }
+        .btn-copy { background: #dfe6e9; color: #2d3436; margin-top: 10px; width: 100%; }
         #track-selector { display: none; margin-top: 10px; background: #f1f2f6; padding: 15px; border-radius: 10px; }
-        #typing-text { font-size: 1.4rem; margin: 20px 0; font-weight: 600; text-align: center; min-height: 1.5em; }
-        #qrcode-container { text-align: center; padding: 10px; }
+        #result-ui { text-align: center; display: none; margin-top: 20px; }
+        #typing-text { font-size: 1.4rem; margin-bottom: 20px; font-weight: 600; min-height: 1.5em; }
+        #url-display { font-size: 0.85rem; color: #636e72; background: #f1f2f6; padding: 10px; border-radius: 8px; word-break: break-all; margin: 10px 0; border: 1px solid #ddd; }
+        #qrcode-container { display: inline-block; padding: 10px; background: white; border: 1px solid #eee; border-radius: 10px; }
     </style>
 </head>
 <body>
 
 <div class="container">
     <div class="section">
-        <h2>🎹 MIDI 轉 ABC (修正蜂鳴音)</h2>
+        <h2>🎹 MIDI 轉 ABC 工具</h2>
         <input type="file" id="midiInput" accept=".mid,.midi" onchange="handleMidiUpload()">
         <div id="track-selector">
             <select id="midiTracks"></select>
@@ -41,19 +44,21 @@
     </div>
 
     <div class="section">
-        <label>💬 留言：</label>
-        <input type="text" id="userMsg" value="這段旋律已經修正音階！">
+        <label>💬 留言內容：</label>
+        <input type="text" id="userMsg" value="這是我為你準備的音樂！">
         <label>🎼 ABC 代碼：</label>
-        <textarea id="userAbc"></textarea>
+        <textarea id="userAbc" placeholder="貼上或轉換代碼..."></textarea>
         <div class="btn-group">
-            <button class="btn-pre" onclick="startPreview()">👁️ 循環播放預覽</button>
-            <button class="btn-gen" onclick="generateQR()">📲 生成 QR</button>
+            <button class="btn-pre" onclick="startPreview()">👁️ 預覽播放</button>
+            <button class="btn-gen" onclick="generateQR()">📲 生成卡片</button>
         </div>
     </div>
 
     <div id="result-ui">
         <div id="typing-text"></div>
         <div id="qrcode-container"></div>
+        <div id="url-display">網址將在此顯示</div>
+        <button class="btn-copy" onclick="copyUrl()">📋 複製網址分享</button>
     </div>
 </div>
 
@@ -61,7 +66,7 @@
     let currentMidi = null;
     let typingInterval = null;
 
-    // --- MIDI 轉檔邏輯 ---
+    // MIDI 上傳與聲道選擇
     async function handleMidiUpload() {
         const file = document.getElementById('midiInput').files[0];
         if (!file) return;
@@ -80,6 +85,7 @@
         document.getElementById('track-selector').style.display = 'block';
     }
 
+    // 轉換為 ABC Code
     function convertToAbc() {
         const track = currentMidi.tracks[document.getElementById('midiTracks').value];
         let abc = "X:1\nM:4/4\nL:1/16\nQ:120\nK:C\n";
@@ -91,7 +97,6 @@
                 let z = Math.round(wait * 8);
                 if (z > 0) abc += "z" + (z > 1 ? z : "") + " ";
             }
-            // 精確處理 ABC 八度與升降
             let p = note.pitch.replace(/[0-9]/g, '').replace('#', '^');
             let oct = note.octave;
             let finalNote = p;
@@ -104,16 +109,18 @@
             abc += finalNote + (dur > 1 ? dur : "") + " ";
             lastEnd = note.time + note.duration;
         });
-        document.getElementById('userAbc').value = abc;
+        document.getElementById('userAbc').value = abc.trim();
+        alert("轉換完成！");
     }
 
-    // --- 關鍵修正：ABC 解析播放器 ---
+    // 解析並循環播放
     async function startPreview() {
         await Tone.start();
         Tone.Transport.stop();
         Tone.Transport.cancel();
         if (typingInterval) clearInterval(typingInterval);
 
+        document.getElementById('result-ui').style.display = 'block';
         const abc = document.getElementById('userAbc').value;
         const msg = document.getElementById('userMsg').value;
         const synth = new Tone.Synth({ 
@@ -121,27 +128,24 @@
             envelope: { attack: 0.01, decay: 0.1, sustain: 0.2, release: 0.5 }
         }).toDestination();
 
-        // 正則解析：抓取 [升號] + [音名] + [八度標記] + [時值]
         const tokens = abc.match(/(\^?[A-Ga-g][,']*[\d]*|z[\d]*)/g) || [];
         let totalTime = 0;
-        const tick = 0.125; // 1/16 的時長
+        const tick = 0.125; 
 
         const melody = tokens.map(t => {
             const durMatch = t.match(/\d+/);
             const dur = durMatch ? parseInt(durMatch[0]) : 1;
             const isRest = t.startsWith('z');
             const pitchStr = isRest ? null : parseAbcToTone(t.replace(/\d+/g, ''));
-            
-            const obj = { time: totalTime * tick, pitch: pitchStr, duration: (dur * tick * 0.8) + "s", step: dur };
+            const obj = { time: totalTime * tick, pitch: pitchStr, duration: (dur * tick * 0.8) + "s" };
             totalTime += dur;
             return obj;
         });
 
-        const part = new Tone.Part((time, n) => {
+        new Tone.Part((time, n) => {
             if (n.pitch) synth.triggerAttackRelease(n.pitch, n.duration, time);
         }, melody).start(0);
 
-        // 循環邏輯
         Tone.Transport.scheduleRepeat(time => {
             Tone.Draw.schedule(() => {
                 const el = document.getElementById('typing-text');
@@ -157,26 +161,54 @@
         Tone.Transport.start();
     }
 
-    // ABC 轉 Tone.js 音高 (C -> C4, c -> C5, C, -> C3)
     function parseAbcToTone(abcNote) {
         if (!abcNote) return null;
         let sharp = abcNote.includes('^') ? '#' : '';
         let note = abcNote.match(/[A-Ga-g]/)[0];
         let oct = (note === note.toLowerCase()) ? 5 : 4;
-        
-        const commas = (abcNote.match(/,/g) || []).length;
-        const apostrophes = (abcNote.match(/'/g) || []).length;
-        oct = oct - commas + apostrophes;
-        
+        oct = oct - (abcNote.match(/,/g) || []).length + (abcNote.match(/'/g) || []).length;
         return note.toUpperCase() + sharp + oct;
     }
 
+    // 生成 QR Code 與 URL
     function generateQR() {
-        const url = `${window.location.origin}${window.location.pathname}?t=${encodeURIComponent(document.getElementById('userMsg').value)}&abc=${encodeURIComponent(document.getElementById('userAbc').value)}`;
+        const baseUrl = window.location.origin + window.location.pathname;
+        const finalUrl = `${baseUrl}?t=${encodeURIComponent(document.getElementById('userMsg').value)}&abc=${encodeURIComponent(document.getElementById('userAbc').value)}`;
+        
+        // 顯示結果區
+        document.getElementById('result-ui').style.display = 'block';
+        
+        // 渲染 QR Code
         const container = document.getElementById('qrcode-container');
         container.innerHTML = "";
-        new QRCode(container, { text: url, width: 180, height: 180 });
-        alert("QR Code 已生成！");
+        new QRCode(container, { text: finalUrl, width: 180, height: 180 });
+
+        // 顯示 URL
+        document.getElementById('url-display').innerText = finalUrl;
+    }
+
+    // 複製功能
+    function copyUrl() {
+        const urlText = document.getElementById('url-display').innerText;
+        navigator.clipboard.writeText(urlText).then(() => {
+            alert("網址已複製到剪貼簿！");
+        });
+    }
+
+    // 試聽聲道
+    async function playMidiPreview() {
+        await Tone.start();
+        const synth = new Tone.PolySynth(Tone.Synth).toDestination();
+        const track = currentMidi.tracks[document.getElementById('midiTracks').value];
+        const now = Tone.now();
+        track.notes.slice(0, 50).forEach(n => synth.triggerAttackRelease(n.name, n.duration, now + n.time));
+    }
+
+    // 自動加載 URL 參數
+    const params = new URLSearchParams(window.location.search);
+    if (params.has('abc')) {
+        document.getElementById('userMsg').value = decodeURIComponent(params.get('t'));
+        document.getElementById('userAbc').value = decodeURIComponent(params.get('abc'));
     }
 </script>
 </body>
