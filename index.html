@@ -3,10 +3,11 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>音樂訊息盒 Pro 🎹</title>
+    <title>音樂訊息產生器 Pro 🎹</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/tone/14.8.49/Tone.js"></script>
     <script src="https://unpkg.com/@tonejs/midi"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/lz-string/1.4.4/lz-string.min.js"></script>
     <style>
         :root { --primary: #6c5ce7; --secondary: #00b894; --bg: #f8f9fa; }
         body { font-family: -apple-system, sans-serif; background: var(--bg); display: flex; justify-content: center; padding: 20px; }
@@ -20,11 +21,9 @@
         .btn-midi { background: #ff7675; color: white; }
         .btn-pre { background: var(--secondary); color: white; }
         .btn-gen { background: var(--primary); color: white; }
-        .btn-copy { background: #dfe6e9; color: #2d3436; margin-top: 10px; width: 100%; }
-        #track-selector { display: none; margin-top: 10px; background: #f1f2f6; padding: 15px; border-radius: 10px; }
+        .btn-tiny { background: #0984e3; color: white; margin-top: 10px; width: 100%; }
         #result-ui { text-align: center; display: none; margin-top: 20px; }
-        #typing-text { font-size: 1.4rem; margin-bottom: 20px; font-weight: 600; min-height: 1.5em; }
-        #url-display { font-size: 0.85rem; color: #636e72; background: #f1f2f6; padding: 10px; border-radius: 8px; word-break: break-all; margin: 10px 0; border: 1px solid #ddd; }
+        #url-display { font-size: 0.8rem; color: #636e72; background: #f1f2f6; padding: 10px; border-radius: 8px; word-break: break-all; margin: 10px 0; max-height: 80px; overflow-y: auto; }
         #qrcode-container { display: inline-block; padding: 10px; background: white; border: 1px solid #eee; border-radius: 10px; }
     </style>
 </head>
@@ -34,7 +33,7 @@
     <div class="section">
         <h2>🎹 MIDI 轉 ABC 工具</h2>
         <input type="file" id="midiInput" accept=".mid,.midi" onchange="handleMidiUpload()">
-        <div id="track-selector">
+        <div id="track-selector" style="display:none; margin-top:10px;">
             <select id="midiTracks"></select>
             <div class="btn-group">
                 <button class="btn-midi" onclick="playMidiPreview()">👂 試聽</button>
@@ -44,21 +43,22 @@
     </div>
 
     <div class="section">
-        <label>💬 留言內容：</label>
-        <input type="text" id="userMsg" value="這是我為你準備的音樂！">
+        <label>💬 留言：</label>
+        <input type="text" id="userMsg" value="這是一封壓縮過的音樂情書！">
         <label>🎼 ABC 代碼：</label>
-        <textarea id="userAbc" placeholder="貼上或轉換代碼..."></textarea>
+        <textarea id="userAbc"></textarea>
         <div class="btn-group">
             <button class="btn-pre" onclick="startPreview()">👁️ 預覽播放</button>
-            <button class="btn-gen" onclick="generateQR()">📲 生成卡片</button>
+            <button class="btn-gen" onclick="generateQR()">📲 生成縮址卡片</button>
         </div>
     </div>
 
     <div id="result-ui">
-        <div id="typing-text"></div>
+        <div id="typing-text" style="font-size: 1.4rem; font-weight: 600; margin-bottom: 15px;"></div>
         <div id="qrcode-container"></div>
-        <div id="url-display">網址將在此顯示</div>
-        <button class="btn-copy" onclick="copyUrl()">📋 複製網址分享</button>
+        <div id="url-display"></div>
+        <button class="btn-tiny" id="tinyBtn" onclick="makeTiny()">🔗 轉換為 TinyURL 短網址</button>
+        <button onclick="copyUrl()" style="background:#dfe6e9; margin-top:5px; width:100%; border-radius:10px; padding:10px;">📋 複製網址</button>
     </div>
 </div>
 
@@ -66,7 +66,7 @@
     let currentMidi = null;
     let typingInterval = null;
 
-    // MIDI 上傳與聲道選擇
+    // --- MIDI 邏輯 (同前版) ---
     async function handleMidiUpload() {
         const file = document.getElementById('midiInput').files[0];
         if (!file) return;
@@ -78,19 +78,17 @@
             if (track.notes.length > 0) {
                 const opt = document.createElement('option');
                 opt.value = index;
-                opt.text = `軌道 ${index+1}: ${track.name || '樂器'} (${track.notes.length} 音符)`;
+                opt.text = `軌道 ${index+1} (${track.notes.length} 音符)`;
                 select.appendChild(opt);
             }
         });
         document.getElementById('track-selector').style.display = 'block';
     }
 
-    // 轉換為 ABC Code
     function convertToAbc() {
         const track = currentMidi.tracks[document.getElementById('midiTracks').value];
         let abc = "X:1\nM:4/4\nL:1/16\nQ:120\nK:C\n";
         let lastEnd = 0;
-
         track.notes.forEach(note => {
             const wait = note.time - lastEnd;
             if (wait > 0.05) {
@@ -99,65 +97,97 @@
             }
             let p = note.pitch.replace(/[0-9]/g, '').replace('#', '^');
             let oct = note.octave;
-            let finalNote = p;
-            if (oct === 4) finalNote = p.toUpperCase();
-            else if (oct === 5) finalNote = p.toLowerCase();
-            else if (oct < 4) finalNote = p.toUpperCase() + ",".repeat(4-oct);
-            else finalNote = p.toLowerCase() + "'".repeat(oct-5);
-
-            let dur = Math.round(note.duration * 8);
-            abc += finalNote + (dur > 1 ? dur : "") + " ";
+            let finalNote = (oct === 4) ? p.toUpperCase() : (oct === 5) ? p.toLowerCase() : (oct < 4) ? p.toUpperCase() + ",".repeat(4-oct) : p.toLowerCase() + "'".repeat(oct-5);
+            abc += finalNote + (Math.round(note.duration * 8) > 1 ? Math.round(note.duration * 8) : "") + " ";
             lastEnd = note.time + note.duration;
         });
         document.getElementById('userAbc').value = abc.trim();
-        alert("轉換完成！");
     }
 
-    // 解析並循環播放
+    // --- 核心：壓縮與縮址 ---
+    function generateQR() {
+        const msg = document.getElementById('userMsg').value;
+        const abc = document.getElementById('userAbc').value;
+        
+        // 使用 LZ-String 壓縮 ABC Code 減少網址長度
+        const compressedAbc = LZString.compressToEncodedURIComponent(abc);
+        const baseUrl = window.location.origin + window.location.pathname;
+        const finalUrl = `${baseUrl}?t=${encodeURIComponent(msg)}&v=2&abc=${compressedAbc}`;
+        
+        document.getElementById('result-ui').style.display = 'block';
+        document.getElementById('url-display').innerText = finalUrl;
+        
+        const container = document.getElementById('qrcode-container');
+        container.innerHTML = "";
+        new QRCode(container, { text: finalUrl, width: 180, height: 180 });
+    }
+
+    async function makeTiny() {
+        const longUrl = document.getElementById('url-display').innerText;
+        const btn = document.getElementById('tinyBtn');
+        btn.innerText = "縮址中...";
+        
+        try {
+            // 使用 TinyURL API (跨域調用)
+            const response = await fetch(`https://tinyurl.com/api-create.php?url=${encodeURIComponent(longUrl)}`);
+            if (response.ok) {
+                const shortUrl = await response.text();
+                document.getElementById('url-display').innerText = shortUrl;
+                // 更新 QR Code 為短網址
+                const container = document.getElementById('qrcode-container');
+                container.innerHTML = "";
+                new QRCode(container, { text: shortUrl, width: 180, height: 180 });
+                btn.innerText = "✅ 縮址完成！";
+            }
+        } catch (e) {
+            alert("縮址失敗，請手動複製長網址使用。");
+            btn.innerText = "🔗 轉換為 TinyURL 短網址";
+        }
+    }
+
+    // --- 播放邏輯 (解壓縮) ---
+    const params = new URLSearchParams(window.location.search);
+    if (params.has('abc')) {
+        let rawAbc = params.get('abc');
+        // 如果版本號為 v=2，代表是壓縮過的
+        if (params.get('v') === '2') {
+            rawAbc = LZString.decompressFromEncodedURIComponent(rawAbc);
+        }
+        document.getElementById('userMsg').value = decodeURIComponent(params.get('t'));
+        document.getElementById('userAbc').value = rawAbc;
+    }
+
+    function copyUrl() {
+        navigator.clipboard.writeText(document.getElementById('url-display').innerText);
+        alert("網址已複製！");
+    }
+
     async function startPreview() {
         await Tone.start();
-        Tone.Transport.stop();
-        Tone.Transport.cancel();
+        Tone.Transport.stop(); Tone.Transport.cancel();
         if (typingInterval) clearInterval(typingInterval);
-
-        document.getElementById('result-ui').style.display = 'block';
+        document.getElementById('result-area').style.display = 'block';
         const abc = document.getElementById('userAbc').value;
         const msg = document.getElementById('userMsg').value;
-        const synth = new Tone.Synth({ 
-            oscillator: { type: "square" },
-            envelope: { attack: 0.01, decay: 0.1, sustain: 0.2, release: 0.5 }
-        }).toDestination();
-
+        const synth = new Tone.Synth({ oscillator:{type:"square"}, envelope:{attack:0.01, decay:0.1, sustain:0.2, release:0.5}}).toDestination();
         const tokens = abc.match(/(\^?[A-Ga-g][,']*[\d]*|z[\d]*)/g) || [];
-        let totalTime = 0;
-        const tick = 0.125; 
-
+        let totalTime = 0; const tick = 0.125;
         const melody = tokens.map(t => {
-            const durMatch = t.match(/\d+/);
-            const dur = durMatch ? parseInt(durMatch[0]) : 1;
-            const isRest = t.startsWith('z');
-            const pitchStr = isRest ? null : parseAbcToTone(t.replace(/\d+/g, ''));
-            const obj = { time: totalTime * tick, pitch: pitchStr, duration: (dur * tick * 0.8) + "s" };
-            totalTime += dur;
-            return obj;
+            const dur = t.match(/\d+/) ? parseInt(t.match(/\d+/)[0]) : 1;
+            const pitch = t.startsWith('z') ? null : parseAbcToTone(t.replace(/\d+/g,''));
+            const obj = { time: totalTime * tick, pitch: pitch, duration: (dur * tick * 0.8) + "s" };
+            totalTime += dur; return obj;
         });
-
-        new Tone.Part((time, n) => {
-            if (n.pitch) synth.triggerAttackRelease(n.pitch, n.duration, time);
-        }, melody).start(0);
-
+        new Tone.Part((time, n) => { if(n.pitch) synth.triggerAttackRelease(n.pitch, n.duration, time); }, melody).start(0);
         Tone.Transport.scheduleRepeat(time => {
             Tone.Draw.schedule(() => {
-                const el = document.getElementById('typing-text');
-                el.innerText = "";
-                let i = 0;
+                document.getElementById('typing-text').innerText = ""; let i = 0;
                 typingInterval = setInterval(() => {
-                    el.innerText += msg[i]; i++;
-                    if (i >= msg.length) clearInterval(typingInterval);
+                    document.getElementById('typing-text').innerText += msg[i]; i++;
+                    if(i >= msg.length) clearInterval(typingInterval);
                 }, 100);
             }, time);
         }, totalTime * tick);
-
         Tone.Transport.start();
     }
 
@@ -168,47 +198,6 @@
         let oct = (note === note.toLowerCase()) ? 5 : 4;
         oct = oct - (abcNote.match(/,/g) || []).length + (abcNote.match(/'/g) || []).length;
         return note.toUpperCase() + sharp + oct;
-    }
-
-    // 生成 QR Code 與 URL
-    function generateQR() {
-        const baseUrl = window.location.origin + window.location.pathname;
-        const finalUrl = `${baseUrl}?t=${encodeURIComponent(document.getElementById('userMsg').value)}&abc=${encodeURIComponent(document.getElementById('userAbc').value)}`;
-        
-        // 顯示結果區
-        document.getElementById('result-ui').style.display = 'block';
-        
-        // 渲染 QR Code
-        const container = document.getElementById('qrcode-container');
-        container.innerHTML = "";
-        new QRCode(container, { text: finalUrl, width: 180, height: 180 });
-
-        // 顯示 URL
-        document.getElementById('url-display').innerText = finalUrl;
-    }
-
-    // 複製功能
-    function copyUrl() {
-        const urlText = document.getElementById('url-display').innerText;
-        navigator.clipboard.writeText(urlText).then(() => {
-            alert("網址已複製到剪貼簿！");
-        });
-    }
-
-    // 試聽聲道
-    async function playMidiPreview() {
-        await Tone.start();
-        const synth = new Tone.PolySynth(Tone.Synth).toDestination();
-        const track = currentMidi.tracks[document.getElementById('midiTracks').value];
-        const now = Tone.now();
-        track.notes.slice(0, 50).forEach(n => synth.triggerAttackRelease(n.name, n.duration, now + n.time));
-    }
-
-    // 自動加載 URL 參數
-    const params = new URLSearchParams(window.location.search);
-    if (params.has('abc')) {
-        document.getElementById('userMsg').value = decodeURIComponent(params.get('t'));
-        document.getElementById('userAbc').value = decodeURIComponent(params.get('abc'));
     }
 </script>
 </body>
