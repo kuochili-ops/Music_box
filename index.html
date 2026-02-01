@@ -13,66 +13,63 @@
         body { font-family: -apple-system, sans-serif; background: var(--bg); display: flex; justify-content: center; align-items: center; min-height: 100vh; margin: 0; padding: 20px; box-sizing: border-box; }
         .container { background: white; padding: 30px; border-radius: 24px; box-shadow: 0 15px 35px rgba(0,0,0,0.1); width: 100%; max-width: 450px; text-align: center; }
         
-        /* 播放遮罩：解決瀏覽器自動播放限制 */
-        #play-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(108, 92, 231, 0.95); display: flex; flex-direction: column; justify-content: center; align-items: center; z-index: 100; color: white; cursor: pointer; border-radius: 0; }
-        #play-overlay h2 { margin-bottom: 20px; }
-        .play-icon { font-size: 80px; transition: transform 0.2s; }
-        #play-overlay:hover .play-icon { transform: scale(1.1); }
+        #play-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(108, 92, 231, 0.98); display: flex; flex-direction: column; justify-content: center; align-items: center; z-index: 100; color: white; cursor: pointer; }
+        .play-icon { font-size: 80px; margin-bottom: 20px; }
 
-        #typing-text { font-size: 1.6rem; font-weight: 700; color: #2d3436; margin: 30px 0; min-height: 2em; line-height: 1.4; }
+        #typing-text { font-size: 1.6rem; font-weight: 700; color: #2d3436; margin: 30px 0; min-height: 2em; line-height: 1.4; word-break: break-all; }
         .section { margin-bottom: 20px; text-align: left; }
         textarea, input { width: 100%; padding: 12px; border-radius: 10px; border: 1px solid #ddd; margin-top: 8px; box-sizing: border-box; }
-        .btn-group { display: flex; gap: 10px; margin-top: 15px; }
-        button { flex: 1; padding: 12px; border-radius: 10px; border: none; font-weight: bold; cursor: pointer; }
+        .btn-group { display: flex; gap: 10px; margin-top: 20px; }
+        button { flex: 1; padding: 14px; border-radius: 10px; border: none; font-weight: bold; cursor: pointer; font-size: 15px; }
         .hidden { display: none !important; }
         #qrcode-container { margin-top: 20px; padding: 10px; background: #fff; display: inline-block; border-radius: 12px; border: 1px solid #eee; }
-        #url-display { font-size: 0.8rem; background: #f1f2f6; padding: 10px; border-radius: 8px; word-break: break-all; margin: 10px 0; }
+        #url-display { font-size: 0.8rem; background: #f1f2f6; padding: 10px; border-radius: 8px; word-break: break-all; margin: 10px 0; border: 1px solid #ddd; }
     </style>
 </head>
 <body>
 
-<div id="play-overlay" class="hidden" onclick="startReceiverExperience()">
+<div id="play-overlay" class="hidden" onclick="startExperience()">
     <div class="play-icon">🎁</div>
     <h2>點擊拆開音樂訊息</h2>
-    <p>音量建議開啟 🔊</p>
+    <p>啟動驚喜旋律 🔊</p>
 </div>
 
 <div class="container">
     <div id="editor-ui">
         <h2>🎵 音樂訊息產生器</h2>
         <div class="section">
-            <label>1. 上傳 MIDI 或貼上 ABC</label>
+            <label>1. 上傳 MIDI 檔案</label>
             <input type="file" id="midiInput" accept=".mid,.midi" onchange="handleMidiUpload()">
             <select id="midiTracks" class="hidden" style="margin-top:10px;"></select>
-            <button id="convertBtn" class="hidden" onclick="convertToAbc()" style="margin-top:10px; background:var(--primary); color:white;">轉換為樂譜</button>
-            <textarea id="userAbc" placeholder="樂譜代碼..."></textarea>
+            <button id="convertBtn" class="hidden" onclick="convertToAbc()" style="margin-top:10px; background:var(--primary); color:white;">確定轉換為 ABC 碼</button>
+            <textarea id="userAbc" placeholder="樂譜 ABC 代碼將在此生成..."></textarea>
         </div>
         <div class="section">
             <label>2. 留言內容</label>
             <input type="text" id="userMsg" value="這是一份給你的驚喜！">
         </div>
-        <button onclick="generateQR()" style="width:100%; background:var(--primary); color:white; padding:15px; font-size:1.1rem;">📲 生成分享連結</button>
+        <button onclick="generateQR()" style="width:100%; background:var(--primary); color:white; padding:15px; font-size:1.1rem; border-radius:12px;">📲 生成分享卡片</button>
     </div>
 
     <div id="result-ui" class="hidden">
         <div id="typing-text"></div>
         <div id="qrcode-container"></div>
-        <div id="url-display"></div>
+        <div id="url-display">網址將在此顯示</div>
+        
         <div class="btn-group">
-            <button onclick="copyUrl()" style="background:#dfe6e9;">📋 複製網址</button>
-            <button onclick="location.reload()" style="background:#fab1a0;">🔄 重新製作</button>
+            <button onclick="copyUrl()" style="background:#dfe6e9; color:#2d3436;">📋 複製網址</button>
+            <button onclick="window.location.href=window.location.origin+window.location.pathname" style="background:#fab1a0; color:white;">🔄 我也要做</button>
         </div>
     </div>
 </div>
 
 <script>
     let typingInterval = null;
+    let melodyPart = null;
     const params = new URLSearchParams(window.location.search);
 
-    // --- 啟動與初始化 ---
     window.onload = () => {
         if (params.has('abc')) {
-            // 收件方模式
             document.getElementById('editor-ui').classList.add('hidden');
             document.getElementById('play-overlay').classList.remove('hidden');
             document.getElementById('result-ui').classList.remove('hidden');
@@ -81,17 +78,20 @@
             if (params.get('v') === '2') abc = LZString.decompressFromEncodedURIComponent(abc);
             document.getElementById('userAbc').value = abc;
             document.getElementById('userMsg').value = decodeURIComponent(params.get('t') || "");
+            
+            // 預先生成網址供複製
+            document.getElementById('url-display').innerText = window.location.href;
+            const qrContainer = document.getElementById('qrcode-container');
+            new QRCode(qrContainer, { text: window.location.href, width: 180, height: 180 });
         }
     };
 
-    // 收件方點擊啟動
-    async function startReceiverExperience() {
+    async function startExperience() {
         document.getElementById('play-overlay').classList.add('hidden');
         await Tone.start();
-        startPreviewLoop(); // 啟動音樂與打字機
+        setupAndStartLoop();
     }
 
-    // --- 音樂引擎 ---
     function parseAbcToTone(abcNote) {
         if (!abcNote) return null;
         let sharp = abcNote.includes('^') ? '#' : '';
@@ -101,8 +101,7 @@
         return note.toUpperCase() + sharp + oct;
     }
 
-    async function startPreviewLoop() {
-        await Tone.start();
+    function setupAndStartLoop() {
         Tone.Transport.stop();
         Tone.Transport.cancel();
         if (typingInterval) clearInterval(typingInterval);
@@ -111,14 +110,14 @@
         const msg = document.getElementById('userMsg').value;
         const synth = new Tone.Synth({ 
             oscillator: { type: "square" }, 
-            envelope: { attack: 0.01, decay: 0.1, sustain: 0.3, release: 1 } 
+            envelope: { attack: 0.01, decay: 0.1, sustain: 0.3, release: 0.8 } 
         }).toDestination();
 
         const tokens = abc.match(/(\^?[A-Ga-g][,']*[\d]*|z[\d]*)/g) || [];
         let totalTicks = 0;
         const tick = 0.125; 
 
-        const melody = tokens.map(t => {
+        const melodyData = tokens.map(t => {
             const dur = t.match(/\d+/) ? parseInt(t.match(/\d+/)[0]) : 1;
             const pitch = t.startsWith('z') ? null : parseAbcToTone(t.replace(/\d+/g,''));
             const obj = { time: totalTicks * tick, pitch: pitch, duration: (dur * tick * 0.8) + "s" };
@@ -126,28 +125,36 @@
             return obj;
         });
 
-        new Tone.Part((time, n) => {
-            if (n.pitch) synth.triggerAttackRelease(n.pitch, n.duration, time);
-        }, melody).start(0);
+        const loopDuration = totalTicks * tick;
 
-        // 音樂與文字同步循環
+        // 音樂 Part 設定循環
+        melodyPart = new Tone.Part((time, n) => {
+            if (n.pitch) synth.triggerAttackRelease(n.pitch, n.duration, time);
+        }, melodyData);
+        
+        melodyPart.loop = true;
+        melodyPart.loopEnd = loopDuration;
+        melodyPart.start(0);
+
+        // 文字打字機同步循環
         Tone.Transport.scheduleRepeat(time => {
             Tone.Draw.schedule(() => {
-                document.getElementById('typing-text').innerText = "";
+                const el = document.getElementById('typing-text');
+                el.innerText = "";
                 let i = 0;
                 if (typingInterval) clearInterval(typingInterval);
                 typingInterval = setInterval(() => {
-                    document.getElementById('typing-text').innerText += msg[i];
+                    el.innerText += msg[i];
                     i++;
                     if (i >= msg.length) clearInterval(typingInterval);
                 }, 120);
             }, time);
-        }, totalTicks * tick);
+        }, loopDuration);
 
         Tone.Transport.start();
     }
 
-    // --- MIDI 與 生成功能 (簡化版邏輯) ---
+    // --- MIDI 編輯邏輯 ---
     let currentMidi = null;
     async function handleMidiUpload() {
         const file = document.getElementById('midiInput').files[0];
@@ -176,23 +183,30 @@
             lastEnd = note.time + note.duration;
         });
         document.getElementById('userAbc').value = abc.trim();
+        alert("轉換完成，點擊下方生成分享卡片！");
     }
 
     function generateQR() {
-        const compressed = LZString.compressToEncodedURIComponent(document.getElementById('userAbc').value);
+        const abc = document.getElementById('userAbc').value;
+        if(!abc) { alert("請先上傳 MIDI 並轉換！"); return; }
+        const compressed = LZString.compressToEncodedURIComponent(abc);
         const url = `${window.location.origin}${window.location.pathname}?t=${encodeURIComponent(document.getElementById('userMsg').value)}&v=2&abc=${compressed}`;
+        
         document.getElementById('result-ui').classList.remove('hidden');
         document.getElementById('url-display').innerText = url;
         const qrContainer = document.getElementById('qrcode-container');
         qrContainer.innerHTML = "";
         new QRCode(qrContainer, { text: url, width: 180, height: 180 });
-        // 生成後滾動到下方
-        qrContainer.scrollIntoView({ behavior: 'smooth' });
+        
+        // 生成後模擬點擊播放以便預覽
+        setupAndStartLoop();
     }
 
     function copyUrl() {
-        navigator.clipboard.writeText(document.getElementById('url-display').innerText);
-        alert("網址已複製！快傳給朋友吧～");
+        const url = document.getElementById('url-display').innerText;
+        navigator.clipboard.writeText(url).then(() => {
+            alert("網址已複製！");
+        });
     }
 </script>
 </body>
