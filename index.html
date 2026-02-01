@@ -3,24 +3,23 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>音樂訊息產生器 🎵</title>
+    <title>音樂訊息盒 🎵</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/tone/14.8.49/Tone.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
     <style>
-        body { font-family: -apple-system, sans-serif; background: #f0f2f5; padding: 20px; display: flex; justify-content: center; }
+        body { font-family: -apple-system, sans-serif; background: #f0f2f5; display: flex; justify-content: center; padding: 20px; }
         .container { background: white; padding: 25px; border-radius: 20px; box-shadow: 0 10px 30px rgba(0,0,0,0.1); width: 100%; max-width: 450px; }
-        h2 { display: flex; align-items: center; gap: 10px; color: #333; margin-top: 0; }
-        label { display: block; margin: 15px 0 8px; font-weight: bold; color: #555; }
-        input, textarea { width: 100%; padding: 12px; border: 1px solid #ddd; border-radius: 10px; box-sizing: border-box; font-size: 16px; background: #fafafa; }
-        textarea { font-family: 'Consolas', monospace; height: 120px; }
-        .btn-group { display: flex; gap: 12px; margin-top: 20px; }
-        button { flex: 1; padding: 14px; border: none; border-radius: 10px; cursor: pointer; font-weight: bold; font-size: 16px; transition: 0.2s; }
+        .input-group { margin-bottom: 15px; }
+        label { display: block; margin-bottom: 5px; font-weight: bold; color: #555; }
+        input, textarea { width: 100%; padding: 12px; border: 1px solid #ddd; border-radius: 10px; box-sizing: border-box; }
+        textarea { font-family: monospace; height: 120px; }
+        .btn-group { display: flex; gap: 10px; margin-top: 20px; }
+        button { flex: 1; padding: 14px; border: none; border-radius: 10px; cursor: pointer; font-weight: bold; font-size: 16px; }
         .btn-pre { background: #55efc4; color: #004d40; }
         .btn-gen { background: #6c5ce7; color: white; }
-        button:active { transform: scale(0.98); }
-        #result-area { margin-top: 25px; padding-top: 20px; border-top: 2px dashed #eee; text-align: center; }
-        #typing-text { font-size: 1.3rem; margin: 20px 0; color: #2d3436; font-weight: 600; min-height: 1.5em; }
-        #qrcode-container { display: inline-block; padding: 10px; background: white; border: 1px solid #eee; }
+        #result-area { margin-top: 20px; text-align: center; border-top: 2px dashed #eee; padding-top: 20px; }
+        #typing-text { font-size: 1.4rem; margin: 20px 0; font-weight: 600; color: #333; min-height: 1.5em; }
+        .hidden { display: none; }
     </style>
 </head>
 <body>
@@ -28,129 +27,108 @@
 <div class="container">
     <div id="editor-ui">
         <h2>🎵 製作音樂訊息</h2>
-        <label>💬 留言內容：</label>
-        <input type="text" id="userMsg" value="這是一封會重複播放的音樂情書！">
-        
-        <label>🎼 ABC 樂譜代碼：</label>
-        <textarea id="userAbc">X:1
-M:4/4
-L:1/16
-Q:113
-K:C
-^d z ^d ^c B2 ^c z d2 ^c z d2 | z2 z2 ^c2 ^f z ^f2 ^A, z G,4</textarea>
-        
+        <div class="input-group">
+            <label>💬 留言內容：</label>
+            <input type="text" id="userMsg" value="這段旋律太洗腦了！">
+        </div>
+        <div class="input-group">
+            <label>🎼 ABC 樂譜代碼：</label>
+            <textarea id="userAbc"></textarea>
+        </div>
         <div class="btn-group">
-            <button class="btn-pre" onclick="preview()">👁️ 預覽播放 (無限循環)</button>
+            <button class="btn-pre" onclick="startLoop()">👁️ 循環播放預覽</button>
             <button class="btn-gen" onclick="generateQR()">📲 生成 QR</button>
         </div>
     </div>
 
-    <div id="result-area">
+    <div id="result-area" class="hidden">
         <div id="typing-text"></div>
         <div id="qrcode-container"></div>
     </div>
 </div>
 
 <script>
-    let typingTimer = null;
-    let mainLoop = null;
+    // 預填你提供的旋律
+    document.getElementById('userAbc').value = `X:1\nM:4/4\nL:1/4\nQ:1/4=200\nK:C\nE/8-E/8-E/8-E/8-E/8-E/8-E/8-E/8-E/8-E/8-E/8-E/8-E/8-E/8-E/8-E/8-E/8-E/8-E/8-E/8-E/8-E/8-E/8-E/8-E/8-E/8-E/8-E/8-E/8-E/8-E/8-E/8 |\nG G# A2 | G E C2 | <B C D2 | C <A G2. | B >D G2 | A G. A/2 | F E G1`;
 
-    async function preview() {
+    let typingInterval = null;
+
+    async function startLoop() {
         await Tone.start();
-        
-        // 徹底停止並清除舊的播放
         Tone.Transport.stop();
         Tone.Transport.cancel();
-        if (mainLoop) {
-            mainLoop.dispose();
-            mainLoop = null;
-        }
-        if (typingTimer) clearInterval(typingTimer);
+        if (typingInterval) clearInterval(typingInterval);
         
-        document.getElementById('result-area').style.display = 'block';
-        document.getElementById('typing-text').innerText = "";
-        
+        document.getElementById('result-area').classList.remove('hidden');
         const msg = document.getElementById('userMsg').value;
         const abc = document.getElementById('userAbc').value;
 
-        // 1. 初始化合成器
         const synth = new Tone.Synth({ 
             oscillator: { type: "square" },
-            envelope: { attack: 0.005, decay: 0.1, sustain: 0.3, release: 1 }
+            envelope: { attack: 0.005, decay: 0.1, sustain: 0.3, release: 0.8 }
         }).toDestination();
 
-        // 2. 解析樂譜並計算總長度
-        const tokens = abc.match(/(\^?[A-Ga-g],?\d*|z\d*)/g) || [];
-        const bpmFactor = 0.133; // 113BPM 下 16分音符約 0.133s
-        let totalDuration = 0;
-        const melodyData = tokens.map(token => {
-            const isRest = token.startsWith('z');
-            const hasSharp = token.includes('^');
-            const hasLowerOctave = token.includes(',');
-            const noteName = token.match(/[A-Ga-g]/)?.[0];
-            const durationMatch = token.match(/\d+/);
-            const duration = durationMatch ? parseInt(durationMatch[0]) : 1;
-            
-            const item = {
-                time: totalDuration * bpmFactor,
-                pitch: !isRest && noteName ? (noteName.toUpperCase() + (hasSharp ? "#" : "") + (noteName === noteName.toLowerCase() ? 5 : (hasLowerOctave ? 3 : 4))) : null,
-                duration: (duration * 0.12) + "s",
-                step: duration
-            };
-            totalDuration += duration;
-            return item;
+        // 簡單解析器：計算總時長並排程
+        const tokens = abc.match(/(\^?_?[A-Ga-g][,']*\d*\/??\d*|z\d*\/??\d*)/g) || [];
+        const secondsPerBeat = 60 / 200; // Q:200
+        let totalTime = 0;
+
+        const part = new Tone.Part((time, note) => {
+            if (note.pitch) {
+                synth.triggerAttackRelease(note.pitch, note.dur, time);
+            }
+        }, []).start(0);
+
+        tokens.forEach(t => {
+            let durMatch = t.match(/(\d*)(\/?)(\d*)$/);
+            let multiplier = 1;
+            if (durMatch) {
+                let num = parseInt(durMatch[1]) || 1;
+                let den = parseInt(durMatch[3]) || (durMatch[2] ? 2 : 1);
+                multiplier = num / den;
+            }
+
+            if (!t.startsWith('z')) {
+                let pitch = t.match(/\^?_?[A-Ga-g][,']*/)[0]
+                             .replace('^', '#').replace('_', 'b')
+                             .replace('c', 'C5').replace('d', 'D5').replace('e', 'E5');
+                if (!pitch.match(/\d/)) pitch += "4"; // 預設 4 八度
+                
+                part.add(totalTime * secondsPerBeat, { pitch: pitch, dur: (multiplier * secondsPerBeat * 0.9) + "s" });
+            }
+            totalTime += multiplier;
         });
 
-        // 3. 建立循環播放 (Loop)
-        // 增加 2 個 step 的餘裕時間，讓循環聽起來更順
-        const loopInterval = (totalDuration + 2) * bpmFactor;
-
-        mainLoop = new Tone.Loop((time) => {
-            // 在循環起點重置打字機
+        // 核心：循環邏輯
+        const loopDuration = totalTime * secondsPerBeat;
+        Tone.Transport.scheduleRepeat((time) => {
             Tone.Draw.schedule(() => {
-                document.getElementById('typing-text').innerText = "";
-                startTypewriter(msg);
+                runTyping(msg);
             }, time);
-
-            // 播放整段旋律
-            melodyData.forEach(item => {
-                if (item.pitch) {
-                    synth.triggerAttackRelease(item.pitch, item.duration, time + item.time);
-                }
-            });
-        }, loopInterval).start(0);
+        }, loopDuration);
 
         Tone.Transport.start();
     }
 
-    function startTypewriter(text) {
-        if (typingTimer) clearInterval(typingTimer);
+    function runTyping(text) {
+        if (typingInterval) clearInterval(typingInterval);
+        const el = document.getElementById('typing-text');
+        el.innerText = "";
         let i = 0;
-        const display = document.getElementById('typing-text');
-        typingTimer = setInterval(() => {
-            display.innerText += text[i];
+        typingInterval = setInterval(() => {
+            el.innerText += text[i];
             i++;
-            if (i >= text.length) clearInterval(typingTimer);
+            if (i >= text.length) clearInterval(typingInterval);
         }, 100);
     }
 
     function generateQR() {
-        const msg = document.getElementById('userMsg').value;
-        const abc = document.getElementById('userAbc').value;
-        const finalUrl = `${window.location.origin}${window.location.pathname}?t=${encodeURIComponent(msg)}&abc=${encodeURIComponent(abc)}`;
-        
+        const url = `${window.location.origin}${window.location.pathname}?t=${encodeURIComponent(document.getElementById('userMsg').value)}&abc=${encodeURIComponent(document.getElementById('userAbc').value)}`;
         const container = document.getElementById('qrcode-container');
         container.innerHTML = "";
-        new QRCode(container, { text: finalUrl, width: 180, height: 180 });
-    }
-
-    // 處理 URL 參數 (掃描進來的情境)
-    const params = new URLSearchParams(window.location.search);
-    if (params.has('abc')) {
-        document.getElementById('userMsg').value = decodeURIComponent(params.get('t'));
-        document.getElementById('userAbc').value = decodeURIComponent(params.get('abc'));
+        new QRCode(container, { text: url, width: 180, height: 180 });
+        document.getElementById('result-area').classList.remove('hidden');
     }
 </script>
-
 </body>
 </html>
