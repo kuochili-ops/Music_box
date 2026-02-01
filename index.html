@@ -7,20 +7,19 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/tone/14.8.49/Tone.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
     <style>
-        body { font-family: -apple-system, sans-serif; background: #f0f2f5; padding: 20px; display: flex; justify-content: center; }
+        body { font-family: -apple-system, sans-serif; background: #f0f2f5; display: flex; justify-content: center; padding: 20px; }
         .container { background: white; padding: 25px; border-radius: 20px; box-shadow: 0 10px 30px rgba(0,0,0,0.1); width: 100%; max-width: 450px; }
         h2 { display: flex; align-items: center; gap: 10px; color: #333; margin-top: 0; }
-        label { display: flex; align-items: center; gap: 8px; margin: 15px 0 8px; font-weight: bold; color: #555; }
+        label { display: block; margin: 15px 0 8px; font-weight: bold; color: #555; }
         input, textarea { width: 100%; padding: 12px; border: 1px solid #ddd; border-radius: 10px; box-sizing: border-box; font-size: 16px; background: #fafafa; }
-        textarea { font-family: 'Consolas', monospace; height: 120px; line-height: 1.4; }
+        textarea { font-family: 'Consolas', monospace; height: 120px; }
         .btn-group { display: flex; gap: 12px; margin-top: 20px; }
-        button { flex: 1; padding: 14px; border: none; border-radius: 10px; cursor: pointer; font-weight: bold; font-size: 16px; display: flex; align-items: center; justify-content: center; gap: 8px; transition: 0.2s; }
+        button { flex: 1; padding: 14px; border: none; border-radius: 10px; cursor: pointer; font-weight: bold; font-size: 16px; transition: 0.2s; }
         .btn-pre { background: #55efc4; color: #004d40; }
         .btn-gen { background: #6c5ce7; color: white; }
-        button:active { transform: scale(0.98); }
         #result-area { margin-top: 25px; padding-top: 20px; border-top: 2px dashed #eee; text-align: center; }
         #typing-text { font-size: 1.3rem; margin: 20px 0; color: #2d3436; font-weight: 600; min-height: 1.5em; }
-        #qrcode-container { display: inline-block; padding: 10px; background: white; border: 1px solid #eee; margin-bottom: 10px; }
+        #qrcode-container { display: inline-block; padding: 10px; background: white; border: 1px solid #eee; }
     </style>
 </head>
 <body>
@@ -29,7 +28,7 @@
     <div id="editor-ui">
         <h2>🎵 製作音樂訊息</h2>
         <label>💬 留言內容：</label>
-        <input type="text" id="userMsg" value="這是一封音樂情書！">
+        <input type="text" id="userMsg" value="這是一封會重複播放的音樂情書！">
         
         <label>🎼 ABC 樂譜代碼：</label>
         <textarea id="userAbc">X:1
@@ -40,29 +39,94 @@ K:C
 ^d z ^d ^c B2 ^c z d2 ^c z d2 | z2 z2 ^c2 ^f z ^f2 ^A, z G,4</textarea>
         
         <div class="btn-group">
-            <button class="btn-pre" onclick="preview()">👁️ 預覽播放</button>
+            <button class="btn-pre" onclick="preview()">👁️ 預覽播放 (循環)</button>
             <button class="btn-gen" onclick="generateQR()">📲 生成 QR</button>
         </div>
     </div>
 
-    <div id="result-area" class="hidden">
+    <div id="result-area">
         <div id="typing-text"></div>
         <div id="qrcode-container"></div>
-        <div id="status-msg" style="font-size: 0.8rem; color: #999;"></div>
     </div>
 </div>
 
 <script>
+    let currentLoop = null;
+    let typingTimer = null;
+
     async function preview() {
         await Tone.start();
+        // 停止之前的播放
+        Tone.Transport.stop();
+        Tone.Transport.cancel();
+        if (typingTimer) clearInterval(typingTimer);
+        
         const msg = document.getElementById('userMsg').value;
         const abc = document.getElementById('userAbc').value;
         
-        document.getElementById('result-area').classList.remove('hidden');
         document.getElementById('typing-text').innerText = "";
         
-        typeWriter(msg);
-        playAdvancedABC(abc);
+        // 設定循環播放
+        setupLoop(msg, abc);
+    }
+
+    function setupLoop(msg, abc) {
+        const synth = new Tone.Synth({ 
+            oscillator: { type: "square" },
+            envelope: { attack: 0.005, decay: 0.1, sustain: 0.3, release: 1 }
+        }).toDestination();
+
+        // 解析音符
+        const tokens = abc.match(/(\^?[A-Ga-g],?\d*|z\d*)/g) || [];
+        let totalDuration = 0;
+        
+        // 建立播放事件
+        const sequence = tokens.map(token => {
+            const isRest = token.startsWith('z');
+            const hasSharp = token.includes('^');
+            const hasLowerOctave = token.includes(',');
+            const noteName = token.match(/[A-Ga-g]/)?.[0];
+            const durationMatch = token.match(/\d+/);
+            const duration = durationMatch ? parseInt(durationMatch[0]) : 1;
+            
+            const event = {
+                time: totalDuration * 0.133,
+                pitch: !isRest && noteName ? (noteName.toUpperCase() + (hasSharp ? "#" : "") + (noteName === noteName.toLowerCase() ? 5 : (hasLowerOctave ? 3 : 4))) : null,
+                duration: (duration * 0.12) + "s",
+                realDuration: duration
+            };
+            totalDuration += duration;
+            return event;
+        });
+
+        // 使用 Tone.Part 建立循環
+        const part = new Tone.Part((time, value) => {
+            if (value.pitch) {
+                synth.triggerAttackRelease(value.pitch, value.duration, time);
+            }
+        }, sequence).start(0);
+
+        // 每當循環開始時，重新跑打字機
+        Tone.Transport.scheduleRepeat((time) => {
+            Tone.Draw.schedule(() => {
+                document.getElementById('typing-text').innerText = "";
+                typeWriter(msg);
+            }, time);
+        }, totalDuration * 0.133);
+
+        Tone.Transport.bpm.value = 113;
+        Tone.Transport.start();
+    }
+
+    function typeWriter(text) {
+        if (typingTimer) clearInterval(typingTimer);
+        let i = 0;
+        const display = document.getElementById('typing-text');
+        typingTimer = setInterval(() => {
+            display.innerText += text[i];
+            i++;
+            if (i >= text.length) clearInterval(typingTimer);
+        }, 100);
     }
 
     function generateQR() {
@@ -73,61 +137,13 @@ K:C
         const container = document.getElementById('qrcode-container');
         container.innerHTML = "";
         new QRCode(container, { text: finalUrl, width: 180, height: 180 });
-        document.getElementById('result-area').classList.remove('hidden');
-        document.getElementById('status-msg').innerText = "QR Code 已更新！掃描即可傳送。";
     }
 
-    function typeWriter(text) {
-        let i = 0;
-        const display = document.getElementById('typing-text');
-        const timer = setInterval(() => {
-            display.innerText += text[i];
-            i++;
-            if (i >= text.length) clearInterval(timer);
-        }, 120);
-    }
-
-    // --- 進階 ABC 解析器 ---
-    function playAdvancedABC(abc) {
-        const synth = new Tone.Synth({ 
-            oscillator: { type: "square" },
-            envelope: { attack: 0.01, decay: 0.1, sustain: 0.1, release: 1 }
-        }).toDestination();
-        
-        const now = Tone.now();
-        let currentTime = 0;
-        
-        // 抓取音符指令：包括升號(^)、音名(A-G, a-g)、休止符(z)、長度(數字)
-        const tokens = abc.match(/\^?[A-Ga-gz]\d*/g) || [];
-        
-        tokens.forEach(token => {
-            const isRest = token.includes('z');
-            const hasSharp = token.includes('^');
-            const noteName = token.match(/[A-Ga-g]/)?.[0];
-            const durationMatch = token.match(/\d+/);
-            const duration = durationMatch ? parseInt(durationMatch[0]) : 1;
-            
-            if (!isRest && noteName) {
-                // 基礎音高處理
-                let octave = (noteName === noteName.toLowerCase()) ? 5 : 4;
-                let pitch = noteName.toUpperCase() + (hasSharp ? "#" : "") + octave;
-                
-                // 播放音符：16n * duration
-                synth.triggerAttackRelease(pitch, (duration * 0.12) + "s", now + currentTime);
-            }
-            
-            // 累加時間：以 16 分音符為基準 (約 0.13s)
-            currentTime += duration * 0.13;
-        });
-    }
-
-    // 自動偵測模式
+    // 自動讀取 URL
     const params = new URLSearchParams(window.location.search);
     if (params.has('abc')) {
         document.getElementById('userMsg').value = decodeURIComponent(params.get('t'));
         document.getElementById('userAbc').value = decodeURIComponent(params.get('abc'));
-        // 如果是收訊模式，可以自動觸發顯示
-        document.getElementById('result-area').classList.remove('hidden');
     }
 </script>
 
