@@ -7,7 +7,7 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/tone/14.8.49/Tone.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
     <style>
-        body { font-family: -apple-system, sans-serif; background: #f0f2f5; display: flex; justify-content: center; padding: 20px; }
+        body { font-family: -apple-system, sans-serif; background: #f0f2f5; padding: 20px; display: flex; justify-content: center; }
         .container { background: white; padding: 25px; border-radius: 20px; box-shadow: 0 10px 30px rgba(0,0,0,0.1); width: 100%; max-width: 450px; }
         h2 { display: flex; align-items: center; gap: 10px; color: #333; margin-top: 0; }
         label { display: block; margin: 15px 0 8px; font-weight: bold; color: #555; }
@@ -17,6 +17,7 @@
         button { flex: 1; padding: 14px; border: none; border-radius: 10px; cursor: pointer; font-weight: bold; font-size: 16px; transition: 0.2s; }
         .btn-pre { background: #55efc4; color: #004d40; }
         .btn-gen { background: #6c5ce7; color: white; }
+        button:active { transform: scale(0.98); }
         #result-area { margin-top: 25px; padding-top: 20px; border-top: 2px dashed #eee; text-align: center; }
         #typing-text { font-size: 1.3rem; margin: 20px 0; color: #2d3436; font-weight: 600; min-height: 1.5em; }
         #qrcode-container { display: inline-block; padding: 10px; background: white; border: 1px solid #eee; }
@@ -39,7 +40,7 @@ K:C
 ^d z ^d ^c B2 ^c z d2 ^c z d2 | z2 z2 ^c2 ^f z ^f2 ^A, z G,4</textarea>
         
         <div class="btn-group">
-            <button class="btn-pre" onclick="preview()">👁️ 預覽播放 (循環)</button>
+            <button class="btn-pre" onclick="preview()">👁️ 預覽播放 (無限循環)</button>
             <button class="btn-gen" onclick="generateQR()">📲 生成 QR</button>
         </div>
     </div>
@@ -51,37 +52,38 @@ K:C
 </div>
 
 <script>
-    let currentLoop = null;
     let typingTimer = null;
+    let mainLoop = null;
 
     async function preview() {
         await Tone.start();
-        // 停止之前的播放
+        
+        // 徹底停止並清除舊的播放
         Tone.Transport.stop();
         Tone.Transport.cancel();
+        if (mainLoop) {
+            mainLoop.dispose();
+            mainLoop = null;
+        }
         if (typingTimer) clearInterval(typingTimer);
+        
+        document.getElementById('result-area').style.display = 'block';
+        document.getElementById('typing-text').innerText = "";
         
         const msg = document.getElementById('userMsg').value;
         const abc = document.getElementById('userAbc').value;
-        
-        document.getElementById('typing-text').innerText = "";
-        
-        // 設定循環播放
-        setupLoop(msg, abc);
-    }
 
-    function setupLoop(msg, abc) {
+        // 1. 初始化合成器
         const synth = new Tone.Synth({ 
             oscillator: { type: "square" },
             envelope: { attack: 0.005, decay: 0.1, sustain: 0.3, release: 1 }
         }).toDestination();
 
-        // 解析音符
+        // 2. 解析樂譜並計算總長度
         const tokens = abc.match(/(\^?[A-Ga-g],?\d*|z\d*)/g) || [];
+        const bpmFactor = 0.133; // 113BPM 下 16分音符約 0.133s
         let totalDuration = 0;
-        
-        // 建立播放事件
-        const sequence = tokens.map(token => {
+        const melodyData = tokens.map(token => {
             const isRest = token.startsWith('z');
             const hasSharp = token.includes('^');
             const hasLowerOctave = token.includes(',');
@@ -89,36 +91,39 @@ K:C
             const durationMatch = token.match(/\d+/);
             const duration = durationMatch ? parseInt(durationMatch[0]) : 1;
             
-            const event = {
-                time: totalDuration * 0.133,
+            const item = {
+                time: totalDuration * bpmFactor,
                 pitch: !isRest && noteName ? (noteName.toUpperCase() + (hasSharp ? "#" : "") + (noteName === noteName.toLowerCase() ? 5 : (hasLowerOctave ? 3 : 4))) : null,
                 duration: (duration * 0.12) + "s",
-                realDuration: duration
+                step: duration
             };
             totalDuration += duration;
-            return event;
+            return item;
         });
 
-        // 使用 Tone.Part 建立循環
-        const part = new Tone.Part((time, value) => {
-            if (value.pitch) {
-                synth.triggerAttackRelease(value.pitch, value.duration, time);
-            }
-        }, sequence).start(0);
+        // 3. 建立循環播放 (Loop)
+        // 增加 2 個 step 的餘裕時間，讓循環聽起來更順
+        const loopInterval = (totalDuration + 2) * bpmFactor;
 
-        // 每當循環開始時，重新跑打字機
-        Tone.Transport.scheduleRepeat((time) => {
+        mainLoop = new Tone.Loop((time) => {
+            // 在循環起點重置打字機
             Tone.Draw.schedule(() => {
                 document.getElementById('typing-text').innerText = "";
-                typeWriter(msg);
+                startTypewriter(msg);
             }, time);
-        }, totalDuration * 0.133);
 
-        Tone.Transport.bpm.value = 113;
+            // 播放整段旋律
+            melodyData.forEach(item => {
+                if (item.pitch) {
+                    synth.triggerAttackRelease(item.pitch, item.duration, time + item.time);
+                }
+            });
+        }, loopInterval).start(0);
+
         Tone.Transport.start();
     }
 
-    function typeWriter(text) {
+    function startTypewriter(text) {
         if (typingTimer) clearInterval(typingTimer);
         let i = 0;
         const display = document.getElementById('typing-text');
@@ -139,7 +144,7 @@ K:C
         new QRCode(container, { text: finalUrl, width: 180, height: 180 });
     }
 
-    // 自動讀取 URL
+    // 處理 URL 參數 (掃描進來的情境)
     const params = new URLSearchParams(window.location.search);
     if (params.has('abc')) {
         document.getElementById('userMsg').value = decodeURIComponent(params.get('t'));
