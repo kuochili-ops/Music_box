@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>音樂鋼琴賀卡 🎹</title>
+    <title>音樂影像賀卡 🎹📸</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/tone/14.8.49/Tone.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/lz-string/1.4.4/lz-string.min.js"></script>
@@ -12,71 +12,88 @@
         :root { --primary: #6c5ce7; --bg: #f1f2f6; }
         body { font-family: -apple-system, sans-serif; background: var(--bg); margin: 0; overflow-x: hidden; display: flex; justify-content: center; align-items: center; min-height: 100vh; perspective: 2000px; }
         
+        /* 賀卡結構優化：對開效果 */
         #card-container { width: 350px; height: 500px; position: relative; transform-style: preserve-3d; transition: transform 1.2s cubic-bezier(0.4, 0, 0.2, 1); cursor: pointer; }
         #card-container.is-open { transform: translateX(50%); }
 
-        #card-cover { position: absolute; width: 100%; height: 100%; top: 0; left: 0; background: var(--primary); color: white; border-radius: 0 15px 15px 0; display: flex; flex-direction: column; justify-content: center; align-items: center; z-index: 5; transform-origin: left; transition: transform 1.2s; backface-visibility: hidden; box-shadow: 10px 0 20px rgba(0,0,0,0.1); }
+        /* 封面 */
+        #card-cover { position: absolute; width: 100%; height: 100%; top: 0; left: 0; background: var(--primary); color: white; border-radius: 0 15px 15px 0; display: flex; flex-direction: column; justify-content: center; align-items: center; z-index: 10; transform-origin: left; transition: transform 1.2s; backface-visibility: hidden; box-shadow: 10px 0 20px rgba(0,0,0,0.1); }
         #card-container.is-open #card-cover { transform: rotateY(-180deg); }
 
-        #card-inside { position: absolute; width: 100%; height: 100%; top: 0; left: 0; background: white; border-radius: 0 15px 15px 0; display: flex; flex-direction: column; align-items: center; padding: 30px 20px; box-sizing: border-box; box-shadow: inset 10px 0 20px rgba(0,0,0,0.05); }
+        /* 左內頁（翻開後背面，放照片） */
+        #card-back-inner { position: absolute; width: 100%; height: 100%; top: 0; left: 0; background: #fff; border-radius: 15px 0 0 15px; transform: rotateY(180deg); transform-origin: left; z-index: 9; display: flex; justify-content: center; align-items: center; overflow: hidden; border-right: 1px solid #eee; }
+        #card-back-inner img { width: 100%; height: 100%; object-fit: cover; }
 
-        /* 鋼琴樣式 */
-        #piano-container { display: flex; width: 100%; height: 80px; background: #333; border-radius: 4px; margin-bottom: 30px; padding: 2px; box-shadow: 0 4px 10px rgba(0,0,0,0.2); }
-        .key { flex: 1; border: 1px solid #ddd; background: white; border-radius: 0 0 3px 3px; position: relative; height: 100%; }
+        /* 右內頁（固定頁，放鋼琴與留言） */
+        #card-inside-right { position: absolute; width: 100%; height: 100%; top: 0; left: 0; background: white; border-radius: 0 15px 15px 0; display: flex; flex-direction: column; align-items: center; padding: 25px 15px; box-sizing: border-box; box-shadow: inset 10px 0 20px rgba(0,0,0,0.05); z-index: 1; }
+
+        /* 鋼琴與文字 */
+        #piano-container { display: flex; width: 100%; height: 70px; background: #333; border-radius: 4px; margin-bottom: 20px; padding: 2px; }
+        .key { flex: 1; border: 1px solid #ddd; background: white; border-radius: 0 0 3px 3px; position: relative; }
         .key.black { background: #000; height: 60%; margin-left: -4%; margin-right: -4%; z-index: 2; flex: 0.6; border: none; }
         .key.active { background: #ff7675 !important; transform: translateY(2px); }
+        #typing-text { font-size: 1.2rem; font-weight: 700; color: #2d3436; text-align: center; width: 100%; line-height: 1.5; margin-top: 10px; }
 
-        /* 留言顯示區 */
-        #typing-text { font-size: 1.4rem; font-weight: 700; color: #2d3436; text-align: center; width: 100%; line-height: 1.6; word-break: break-all; margin-top: 10px; }
-
+        /* 編輯器 */
         .editor-box { background: white; padding: 25px; border-radius: 20px; box-shadow: 0 10px 30px rgba(0,0,0,0.1); width: 90%; max-width: 400px; margin: 20px; }
-        textarea { width: 100%; height: 120px; background: #2d3436; color: #a29bfe; font-family: monospace; padding: 12px; border-radius: 10px; border: none; margin-top: 8px; }
-        .btn-group { display: flex; gap: 8px; margin-top: 15px; }
-        button { flex: 1; padding: 12px; border-radius: 10px; border: none; font-weight: bold; cursor: pointer; }
+        textarea { width: 100%; height: 80px; background: #2d3436; color: #a29bfe; font-family: monospace; padding: 10px; border-radius: 8px; border: none; margin-top: 5px; font-size: 12px; }
+        input[type="text"] { width: 100%; margin: 8px 0; padding: 10px; border: 1px solid #ddd; border-radius: 8px; box-sizing: border-box; }
+        .btn-group { display: flex; gap: 5px; margin-top: 10px; }
+        button { flex: 1; padding: 10px; border-radius: 8px; border: none; font-weight: bold; cursor: pointer; font-size: 13px; }
         .btn-main { background: var(--primary); color: white; }
         .hidden { display: none !important; }
-        #qrcode-container { margin-top: auto; }
     </style>
 </head>
 <body>
 
 <div id="card-container" class="hidden" onclick="openGreetingCard()">
     <div id="card-cover">
-        <div style="font-size: 70px;">🎁</div>
-        <h2 style="margin: 15px 0;">專屬音樂賀卡</h2>
-        <p>點擊翻開卡片</p>
+        <div style="font-size: 70px;">📸</div>
+        <h2 style="margin: 15px 0;">打開這份回憶</h2>
+        <p>TAP TO OPEN</p>
     </div>
-    <div id="card-inside">
+    <div id="card-back-inner">
+        <img id="display-img" src="" alt="IMG_5998">
+    </div>
+    <div id="card-inside-right">
         <div id="piano-container"></div>
         <div id="typing-text"></div>
-        <div id="qrcode-container"></div>
-        <div class="btn-group" style="width: 100%; margin-top: 20px;">
-            <button onclick="copyUrl()" style="background:#f1f2f6; font-size: 12px;">📋 複製網址</button>
-            <button onclick="location.href=location.origin+location.pathname" style="background:#fab1a0; color:white; font-size: 12px;">🔄 我也要做</button>
+        <div id="qrcode-container" style="margin-top:auto;"></div>
+        <div class="btn-group" style="width: 100%; margin-top: 15px;">
+            <button onclick="copyUrl()" style="background:#f1f2f6;">📋 複製</button>
+            <button onclick="location.reload()" style="background:#fab1a0; color:white;">🔄 重做</button>
         </div>
     </div>
 </div>
 
 <div id="editor-ui" class="editor-box">
-    <h2 style="margin:0 0 20px 0; color:var(--primary);">🎹 鋼琴賀卡製作</h2>
-    <div class="section" style="margin-bottom:20px;">
-        <label style="font-weight:bold;">1. 匯入音樂</label>
-        <input type="file" id="midiInput" accept=".mid,.midi" onchange="handleMidiUpload()" style="width:100%; margin-top:10px;">
+    <h3 style="margin:0 0 15px 0; color:var(--primary);">📸 影像音樂賀卡製作</h3>
+    
+    <div class="section" style="margin-bottom:15px;">
+        <label style="font-size:13px; font-weight:bold;">1. 上傳回憶照片 (IMG_5998)</label>
+        <input type="file" id="imageInput" accept="image/*" onchange="handleImageUpload()" style="font-size:12px; margin-top:5px;">
+    </div>
+
+    <div class="section" style="margin-bottom:15px;">
+        <label style="font-size:13px; font-weight:bold;">2. 匯入音樂 (MIDI)</label>
+        <input type="file" id="midiInput" accept=".mid,.midi" onchange="handleMidiUpload()" style="font-size:12px; margin-top:5px;">
         <div id="midi-tool" class="hidden">
-            <select id="midiTracks" style="width:100%; margin:10px 0; padding:10px; border-radius:8px; border:1px solid #ddd;"></select>
-            <button class="btn-main" onclick="convertToAbc()" style="width:100%;">⚡ 轉換為樂譜</button>
+            <select id="midiTracks" style="width:100%; margin:5px 0; padding:8px; border-radius:5px;"></select>
+            <button class="btn-main" onclick="convertToAbc()" style="width:100%; font-size:12px;">⚡ 轉換樂譜</button>
         </div>
     </div>
+
     <div class="section">
-        <label style="font-weight:bold;">2. 編輯內容與留言</label>
-        <textarea id="userAbc" placeholder="ABC 樂譜代碼..."></textarea>
-        <input type="text" id="userMsg" value="祝你今天有個旋律般的好心情！" placeholder="輸入你想說的話..." style="width:100%; margin:10px 0; padding:12px; box-sizing:border-box; border:1px solid #ddd; border-radius:10px;">
+        <label style="font-size:13px; font-weight:bold;">3. 編輯代碼與留言</label>
+        <textarea id="userAbc" spellcheck="false"></textarea>
+        <input type="text" id="userMsg" value="看著照片，聽著這首歌，想你了。">
         <div class="btn-group">
-            <button onclick="previewInEditor()" style="background:#00b894; color:white;">▶️ 預覽鋼琴效果</button>
+            <button onclick="previewInEditor()" style="background:#00b894; color:white;">▶️ 完整預覽</button>
             <button onclick="stopAll(true)" style="background:#ff7675; color:white;">🛑 停止定位</button>
         </div>
     </div>
-    <button onclick="generateShareLink()" style="width:100%; background:var(--primary); color:white; padding:15px; border-radius:12px; font-size:1.1rem; margin-top:20px;">📲 生成分享卡片</button>
+    
+    <button onclick="generateShareLink()" style="width:100%; background:var(--primary); color:white; padding:12px; border-radius:10px; font-size:16px; margin-top:15px;">📲 封裝我的賀卡</button>
 </div>
 
 <script>
@@ -103,6 +120,18 @@
         });
     }
 
+    // 處理照片上傳
+    function handleImageUpload() {
+        const file = document.getElementById('imageInput').files[0];
+        if (file) {
+            const reader = new FileReader();
+            reader.onload = (e) => {
+                document.getElementById('display-img').src = e.target.result;
+            };
+            reader.readAsDataURL(file);
+        }
+    }
+
     window.onload = () => {
         createPiano();
         if (params.has('abc')) {
@@ -112,6 +141,9 @@
             if (params.get('v') === '2') abc = LZString.decompressFromEncodedURIComponent(abc);
             document.getElementById('userAbc').value = abc;
             document.getElementById('userMsg').value = decodeURIComponent(params.get('t') || "");
+            // 如果網址有圖片資料 (簡化版暫不儲存圖片於網址以免過長，建議使用雲端網址)
+            const imgData = localStorage.getItem('last_uploaded_img');
+            if (imgData) document.getElementById('display-img').src = imgData;
         }
     };
 
@@ -145,7 +177,7 @@
         await Tone.start();
         const area = document.getElementById('userAbc');
         const abc = area.value;
-        const msg = document.getElementById('userMsg').value; // 這裡確保抓取到編輯器中的留言
+        const msg = document.getElementById('userMsg').value;
         if (!abc) return;
 
         currentSynth = new Tone.Sampler({
@@ -166,7 +198,6 @@
             totalTime += parseInt(dur);
         }
 
-        const loopDur = totalTime * tick;
         melodyPart = new Tone.Part((time, n) => {
             if (n.pitch) {
                 currentSynth.triggerAttackRelease(n.pitch, n.duration, time);
@@ -183,26 +214,20 @@
             }
         }, melodyData);
         
-        melodyPart.loop = true; melodyPart.loopEnd = loopDur;
+        melodyPart.loop = true; melodyPart.loopEnd = totalTime * tick;
         melodyPart.start(0);
 
-        // 核心修正：啟動留言打字機
         Tone.Transport.scheduleRepeat(time => {
             Tone.Draw.schedule(() => {
                 const el = document.getElementById('typing-text');
-                el.innerText = ""; 
-                let i = 0;
+                el.innerText = ""; let i = 0;
                 if (typingInterval) clearInterval(typingInterval);
                 typingInterval = setInterval(() => {
-                    if (i < msg.length) {
-                        el.innerText += msg[i];
-                        i++;
-                    } else {
-                        clearInterval(typingInterval);
-                    }
+                    if (i < msg.length) { el.innerText += msg[i]; i++; }
+                    else { clearInterval(typingInterval); }
                 }, 150);
             }, time);
-        }, loopDur);
+        }, totalTime * tick);
 
         Tone.Transport.start();
     }
@@ -242,11 +267,16 @@
     }
 
     function generateShareLink() {
+        // 為了持久化照片，建議將照片上傳至 Imgur 等空間。
+        // 此處演示將圖片暫存在本地瀏覽器
+        const img = document.getElementById('display-img').src;
+        if(img.startsWith('data:')) localStorage.setItem('last_uploaded_img', img);
+
         const compressed = LZString.compressToEncodedURIComponent(document.getElementById('userAbc').value);
         const url = `${window.location.origin}${window.location.pathname}?t=${encodeURIComponent(document.getElementById('userMsg').value)}&v=2&abc=${compressed}`;
         const qr = document.getElementById('qrcode-container');
-        qr.innerHTML = ""; new QRCode(qr, { text: url, width: 100, height: 100 });
-        alert("賀卡留言已存檔！");
+        qr.innerHTML = ""; new QRCode(qr, { text: url, width: 80, height: 80 });
+        alert("賀卡已製作！照片已暫存在瀏覽器，若要發送給他人，請確保對方也能存取該圖片網址。");
     }
 
     function copyUrl() {
