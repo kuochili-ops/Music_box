@@ -13,18 +13,18 @@
         body { font-family: -apple-system, sans-serif; background: var(--bg); display: flex; justify-content: center; align-items: center; min-height: 100vh; margin: 0; padding: 20px; box-sizing: border-box; }
         .container { background: white; padding: 30px; border-radius: 24px; box-shadow: 0 15px 35px rgba(0,0,0,0.1); width: 100%; max-width: 450px; text-align: center; }
         
-        /* 播放遮罩 */
+        /* 懸浮播放遮罩 (收件者) */
         #play-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(108, 92, 231, 0.98); display: flex; flex-direction: column; justify-content: center; align-items: center; z-index: 100; color: white; cursor: pointer; }
         
-        /* 音符發光區 */
-        #note-display { height: 60px; font-size: 2.5rem; font-weight: 900; color: var(--primary); margin-bottom: 10px; text-shadow: 0 0 15px rgba(108, 92, 231, 0.3); transition: all 0.1s; }
-        .note-active { color: #fd79a8 !important; transform: scale(1.2); }
+        /* 編輯區音符顯示點 */
+        #live-note { display: inline-block; margin-left: 10px; padding: 2px 10px; background: #ffeaa7; color: #d63031; border-radius: 5px; font-weight: 800; font-family: monospace; min-width: 30px; border: 1px solid #fab1a0; opacity: 0; transition: opacity 0.1s; }
+        #live-note.active { opacity: 1; transform: scale(1.1); }
 
-        #typing-text { font-size: 1.4rem; font-weight: 600; color: #2d3436; margin: 20px 0; min-height: 2em; line-height: 1.4; border-bottom: 2px solid #f1f2f6; padding-bottom: 15px; }
+        #typing-text { font-size: 1.4rem; font-weight: 700; color: #2d3436; margin: 15px 0; min-height: 1.5em; line-height: 1.4; border-bottom: 2px solid #eee; padding-bottom: 10px; }
         
         .section { margin-bottom: 20px; text-align: left; }
         textarea, input, select { width: 100%; padding: 12px; border-radius: 10px; border: 1px solid #ddd; margin-top: 8px; box-sizing: border-box; font-size: 14px; }
-        textarea { font-family: monospace; height: 80px; }
+        textarea { font-family: 'Consolas', monospace; height: 100px; line-height: 1.5; background: #fafafa; }
         
         .btn-group { display: flex; gap: 8px; margin-top: 15px; flex-wrap: wrap; }
         button { flex: 1; min-width: 100px; padding: 12px; border-radius: 10px; border: none; font-weight: bold; cursor: pointer; transition: 0.2s; }
@@ -34,7 +34,7 @@
         .hidden { display: none !important; }
 
         #qrcode-container { margin-top: 20px; }
-        #url-display { font-size: 0.7rem; background: #f1f2f6; padding: 10px; border-radius: 8px; word-break: break-all; margin: 10px 0; }
+        #url-display { font-size: 0.7rem; background: #f1f2f6; padding: 10px; border-radius: 8px; word-break: break-all; margin: 10px 0; border: 1px solid #ddd; }
     </style>
 </head>
 <body>
@@ -46,37 +46,42 @@
 
 <div class="container">
     <div id="editor-ui">
-        <h2 style="margin:0;">🎹 音樂訊息產生器</h2>
+        <h2 style="margin:0 0 20px 0;">🎹 音樂訊息產生器</h2>
+        
         <div class="section">
-            <label>1. 上傳 MIDI</label>
+            <label>1. 上傳 MIDI 並轉換</label>
             <input type="file" id="midiInput" accept=".mid,.midi" onchange="handleMidiUpload()">
             <div id="midi-controls" class="hidden">
                 <select id="midiTracks"></select>
                 <div class="btn-group">
-                    <button class="btn-outline" onclick="playMidiRaw()">試聽</button>
-                    <button class="btn-primary" onclick="convertToAbc()">轉換樂譜</button>
+                    <button class="btn-primary" onclick="convertToAbc()">確定轉換樂譜</button>
                 </div>
             </div>
         </div>
+
         <div class="section">
-            <label>2. 留言與預覽</label>
-            <textarea id="userAbc"></textarea>
-            <input type="text" id="userMsg" value="祝你今天心情愉快！">
+            <label style="display: flex; align-items: center;">
+                2. 留言與預覽 <span id="live-note">-</span>
+            </label>
+            <textarea id="userAbc" placeholder="ABC Code..."></textarea>
+            <input type="text" id="userMsg" value="祝你有個美好的一天！">
+            
             <div class="btn-group">
-                <button class="btn-secondary" onclick="setupAndStartLoop(true)">👁️ 預覽轉檔效果</button>
+                <button class="btn-secondary" onclick="setupAndStartLoop()">👁️ 預覽播放</button>
                 <button class="btn-outline" onclick="stopAll()">🛑 停止</button>
             </div>
         </div>
+
         <button onclick="generateQR()" style="width:100%; background:var(--primary); color:white; padding:15px; font-size:1.1rem; border-radius:12px; margin-top:10px;">📲 生成分享連結</button>
     </div>
 
     <div id="result-ui" class="hidden">
-        <div id="note-display">-</div> <div id="typing-text"></div>
+        <div id="typing-text"></div>
         <div id="qrcode-container"></div>
         <div id="url-display"></div>
         <div class="btn-group">
             <button onclick="copyUrl()" class="btn-outline">📋 複製網址</button>
-            <button onclick="window.location.href=window.location.origin+window.location.pathname" class="btn-outline">🔄 我也要做</button>
+            <button onclick="window.location.href=window.location.origin+window.location.pathname" class="btn-outline">🔄 重新製作</button>
         </div>
     </div>
 </div>
@@ -87,6 +92,7 @@
     let currentSynth = null;
     const params = new URLSearchParams(window.location.search);
 
+    // 初始化檢測
     window.onload = () => {
         if (params.has('abc')) {
             document.getElementById('editor-ui').classList.add('hidden');
@@ -96,8 +102,7 @@
             if (params.get('v') === '2') abc = LZString.decompressFromEncodedURIComponent(abc);
             document.getElementById('userAbc').value = abc;
             document.getElementById('userMsg').value = decodeURIComponent(params.get('t') || "");
-            document.getElementById('url-display').innerText = window.location.href;
-            new QRCode(document.getElementById('qrcode-container'), { text: window.location.href, width: 150, height: 150 });
+            generateQR(true); // 自動生成網址與QR
         }
     };
 
@@ -113,43 +118,48 @@
         if (typingInterval) clearInterval(typingInterval);
         if (melodyPart) melodyPart.dispose();
         if (currentSynth) currentSynth.dispose();
-        document.getElementById('note-display').innerText = "-";
+        const noteEl = document.getElementById('live-note');
+        noteEl.innerText = "-";
+        noteEl.classList.remove('active');
     }
 
-    async function setupAndStartLoop(isLocalPreview = false) {
+    // 核心預覽與播放
+    async function setupAndStartLoop() {
         stopAll();
         await Tone.start();
         const abc = document.getElementById('userAbc').value;
         const msg = document.getElementById('userMsg').value;
-        if (!abc) return alert("無樂譜！");
+        if (!abc) return alert("請輸入樂譜代碼！");
 
         document.getElementById('result-ui').classList.remove('hidden');
+        
         currentSynth = new Tone.Synth({ 
-            oscillator: { type: "square" }, envelope: { attack: 0.01, decay: 0.1, sustain: 0.3, release: 0.8 } 
+            oscillator: { type: "square" }, 
+            envelope: { attack: 0.01, decay: 0.1, sustain: 0.3, release: 0.8 } 
         }).toDestination();
 
         const tokens = abc.match(/(\^?[A-Ga-g][,']*[\d]*|z[\d]*)/g) || [];
-        let totalTicks = 0;
+        let totalTime = 0;
         const tick = 0.125; 
 
         const melodyData = tokens.map(t => {
             const dur = t.match(/\d+/) ? parseInt(t.match(/\d+/)[0]) : 1;
             const pitch = t.startsWith('z') ? null : parseAbcToTone(t.replace(/\d+/g,''));
-            const obj = { time: totalTicks * tick, pitch: pitch, duration: (dur * tick * 0.8) + "s", raw: t.replace(/\d+/g,'') };
-            totalTicks += dur;
+            const obj = { time: totalTime * tick, pitch: pitch, duration: (dur * tick * 0.8) + "s", raw: t.replace(/\d+/g,'') };
+            totalTime += dur;
             return obj;
         });
 
-        const loopDuration = totalTicks * tick;
+        const loopDuration = totalTime * tick;
         melodyPart = new Tone.Part((time, n) => {
             if (n.pitch) {
                 currentSynth.triggerAttackRelease(n.pitch, n.duration, time);
-                // 視覺同步顯示音符
+                // 同步更新「2. 留言與預覽」旁的音符標示
                 Tone.Draw.schedule(() => {
-                    const nd = document.getElementById('note-display');
-                    nd.innerText = n.raw.replace('^', '♯');
-                    nd.classList.add('note-active');
-                    setTimeout(() => nd.classList.remove('note-active'), 150);
+                    const noteEl = document.getElementById('live-note');
+                    noteEl.innerText = n.raw.replace('^', '♯');
+                    noteEl.classList.add('active');
+                    setTimeout(() => noteEl.classList.remove('active'), 150);
                 }, time);
             }
         }, melodyData);
@@ -158,6 +168,7 @@
         melodyPart.loopEnd = loopDuration;
         melodyPart.start(0);
 
+        // 打字機循環
         Tone.Transport.scheduleRepeat(time => {
             Tone.Draw.schedule(() => {
                 const el = document.getElementById('typing-text');
@@ -183,7 +194,7 @@
         return note.toUpperCase() + sharp + oct;
     }
 
-    // MIDI 處理 (同前)
+    // MIDI 上傳邏輯
     let currentMidi = null;
     async function handleMidiUpload() {
         const file = document.getElementById('midiInput').files[0];
@@ -210,15 +221,19 @@
         document.getElementById('userAbc').value = abc.trim();
     }
 
-    function generateQR() {
-        const compressed = LZString.compressToEncodedURIComponent(document.getElementById('userAbc').value);
-        const url = `${window.location.origin}${window.location.pathname}?t=${encodeURIComponent(document.getElementById('userMsg').value)}&v=2&abc=${compressed}`;
+    function generateQR(isAuto = false) {
+        const abc = document.getElementById('userAbc').value;
+        const msg = document.getElementById('userMsg').value;
+        if(!abc) return;
+        const compressed = LZString.compressToEncodedURIComponent(abc);
+        const url = `${window.location.origin}${window.location.pathname}?t=${encodeURIComponent(msg)}&v=2&abc=${compressed}`;
+        
         document.getElementById('result-ui').classList.remove('hidden');
         document.getElementById('url-display').innerText = url;
         const qr = document.getElementById('qrcode-container');
         qr.innerHTML = "";
-        new QRCode(qr, { text: url, width: 150, height: 150 });
-        qr.scrollIntoView({ behavior: 'smooth' });
+        new QRCode(qr, { text: url, width: 140, height: 140 });
+        if(!isAuto) qr.scrollIntoView({ behavior: 'smooth' });
     }
 
     function copyUrl() { navigator.clipboard.writeText(document.getElementById('url-display').innerText).then(() => alert("已複製！")); }
