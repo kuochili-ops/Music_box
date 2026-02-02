@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>音樂訊息盒 Pro 🎹</title>
+    <title>音樂訊息盒 Pro | 實時追蹤版 🎹</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/tone/14.8.49/Tone.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/lz-string/1.4.4/lz-string.min.js"></script>
@@ -11,77 +11,76 @@
     <style>
         :root { --primary: #6c5ce7; --secondary: #00b894; --bg: #f8f9fa; }
         body { font-family: -apple-system, sans-serif; background: var(--bg); display: flex; justify-content: center; align-items: center; min-height: 100vh; margin: 0; padding: 20px; box-sizing: border-box; }
-        .container { background: white; padding: 30px; border-radius: 24px; box-shadow: 0 15px 35px rgba(0,0,0,0.1); width: 100%; max-width: 450px; text-align: center; }
+        .container { background: white; padding: 30px; border-radius: 24px; box-shadow: 0 15px 35px rgba(0,0,0,0.1); width: 100%; max-width: 480px; text-align: center; }
         
-        /* 懸浮播放遮罩 (收件者) */
         #play-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(108, 92, 231, 0.98); display: flex; flex-direction: column; justify-content: center; align-items: center; z-index: 100; color: white; cursor: pointer; }
         
-        /* 編輯區音符顯示點 */
-        #live-note { display: inline-block; margin-left: 10px; padding: 2px 10px; background: #ffeaa7; color: #d63031; border-radius: 5px; font-weight: 800; font-family: monospace; min-width: 30px; border: 1px solid #fab1a0; opacity: 0; transition: opacity 0.1s; }
-        #live-note.active { opacity: 1; transform: scale(1.1); }
-
-        #typing-text { font-size: 1.4rem; font-weight: 700; color: #2d3436; margin: 15px 0; min-height: 1.5em; line-height: 1.4; border-bottom: 2px solid #eee; padding-bottom: 10px; }
-        
         .section { margin-bottom: 20px; text-align: left; }
-        textarea, input, select { width: 100%; padding: 12px; border-radius: 10px; border: 1px solid #ddd; margin-top: 8px; box-sizing: border-box; font-size: 14px; }
-        textarea { font-family: 'Consolas', monospace; height: 100px; line-height: 1.5; background: #fafafa; }
+        label { font-weight: bold; color: #444; display: flex; justify-content: space-between; }
+        #live-status { color: var(--primary); font-size: 0.9rem; }
+
+        /* 高亮顯示的 Textarea 樣式 */
+        textarea { 
+            width: 100%; padding: 12px; border-radius: 10px; border: 2px solid #ddd; 
+            margin-top: 8px; box-sizing: border-box; font-size: 16px;
+            font-family: 'Fira Code', 'Consolas', monospace; height: 120px; line-height: 1.6;
+            background: #2d3436; color: #dfe6e9; caret-color: white;
+        }
+        textarea:focus { border-color: var(--primary); outline: none; }
+
+        input { width: 100%; padding: 12px; border-radius: 10px; border: 1px solid #ddd; margin-top: 8px; box-sizing: border-box; }
         
-        .btn-group { display: flex; gap: 8px; margin-top: 15px; flex-wrap: wrap; }
-        button { flex: 1; min-width: 100px; padding: 12px; border-radius: 10px; border: none; font-weight: bold; cursor: pointer; transition: 0.2s; }
+        .btn-group { display: flex; gap: 8px; margin-top: 15px; }
+        button { flex: 1; padding: 12px; border-radius: 10px; border: none; font-weight: bold; cursor: pointer; transition: 0.2s; }
         .btn-primary { background: var(--primary); color: white; }
         .btn-secondary { background: var(--secondary); color: white; }
-        .btn-outline { background: #dfe6e9; color: #2d3436; }
+        .btn-stop { background: #ff7675; color: white; }
+        
+        #typing-text { font-size: 1.4rem; font-weight: 700; margin: 20px 0; min-height: 1.5em; border-bottom: 2px solid #eee; padding-bottom: 10px; }
         .hidden { display: none !important; }
-
         #qrcode-container { margin-top: 20px; }
-        #url-display { font-size: 0.7rem; background: #f1f2f6; padding: 10px; border-radius: 8px; word-break: break-all; margin: 10px 0; border: 1px solid #ddd; }
     </style>
 </head>
 <body>
 
 <div id="play-overlay" class="hidden" onclick="startExperience()">
     <div style="font-size:80px; margin-bottom:20px;">🎁</div>
-    <h2>點擊拆開音樂訊息</h2>
+    <h2>點擊拆開驚喜</h2>
 </div>
 
 <div class="container">
     <div id="editor-ui">
-        <h2 style="margin:0 0 20px 0;">🎹 音樂訊息產生器</h2>
+        <h2 style="margin:0 0 20px 0;">🎹 ABC 即時追蹤編輯器</h2>
         
         <div class="section">
-            <label>1. 上傳 MIDI 並轉換</label>
+            <label>1. 匯入源 <span style="font-weight:normal; font-size:12px;">(支援 MIDI 上傳)</span></label>
             <input type="file" id="midiInput" accept=".mid,.midi" onchange="handleMidiUpload()">
             <div id="midi-controls" class="hidden">
-                <select id="midiTracks"></select>
-                <div class="btn-group">
-                    <button class="btn-primary" onclick="convertToAbc()">確定轉換樂譜</button>
-                </div>
+                <select id="midiTracks" style="margin-top:10px; width:100%; padding:8px; border-radius:8px;"></select>
+                <button class="btn-primary" onclick="convertToAbc()" style="width:100%; margin-top:10px;">轉換並導入編輯區</button>
             </div>
         </div>
 
         <div class="section">
-            <label style="display: flex; align-items: center;">
-                2. 留言與預覽 <span id="live-note">-</span>
-            </label>
-            <textarea id="userAbc" placeholder="ABC Code..."></textarea>
-            <input type="text" id="userMsg" value="祝你有個美好的一天！">
+            <label>2. 樂譜編輯與追蹤 <span id="live-status">就緒</span></label>
+            <textarea id="userAbc" spellcheck="false" placeholder="ABC 代碼..."></textarea>
+            <input type="text" id="userMsg" value="這段旋律送給你！">
             
             <div class="btn-group">
-                <button class="btn-secondary" onclick="setupAndStartLoop()">👁️ 預覽播放</button>
-                <button class="btn-outline" onclick="stopAll()">🛑 停止</button>
+                <button class="btn-secondary" onclick="setupAndStartLoop()">▶️ 預覽追蹤</button>
+                <button class="btn-stop" onclick="stopAll(true)">🛑 停止定位</button>
             </div>
         </div>
 
-        <button onclick="generateQR()" style="width:100%; background:var(--primary); color:white; padding:15px; font-size:1.1rem; border-radius:12px; margin-top:10px;">📲 生成分享連結</button>
+        <button onclick="generateQR()" style="width:100%; background:var(--primary); color:white; padding:15px; font-size:1.1rem; border-radius:12px; margin-top:10px;">📲 生成分享卡片</button>
     </div>
 
     <div id="result-ui" class="hidden">
         <div id="typing-text"></div>
         <div id="qrcode-container"></div>
-        <div id="url-display"></div>
-        <div class="btn-group">
-            <button onclick="copyUrl()" class="btn-outline">📋 複製網址</button>
-            <button onclick="window.location.href=window.location.origin+window.location.pathname" class="btn-outline">🔄 重新製作</button>
+        <div class="btn-group" style="margin-top:20px;">
+            <button onclick="copyUrl()" style="background:#dfe6e9;">📋 複製網址</button>
+            <button onclick="location.reload()" style="background:#fab1a0; color:white;">🔄 重新開始</button>
         </div>
     </div>
 </div>
@@ -90,9 +89,10 @@
     let typingInterval = null;
     let melodyPart = null;
     let currentSynth = null;
+    let lastPlayedIndex = 0; // 紀錄最後演奏到的位置
+
     const params = new URLSearchParams(window.location.search);
 
-    // 初始化檢測
     window.onload = () => {
         if (params.has('abc')) {
             document.getElementById('editor-ui').classList.add('hidden');
@@ -102,7 +102,6 @@
             if (params.get('v') === '2') abc = LZString.decompressFromEncodedURIComponent(abc);
             document.getElementById('userAbc').value = abc;
             document.getElementById('userMsg').value = decodeURIComponent(params.get('t') || "");
-            generateQR(true); // 自動生成網址與QR
         }
     };
 
@@ -112,63 +111,82 @@
         setupAndStartLoop();
     }
 
-    function stopAll() {
+    function stopAll(shouldLocate = false) {
         Tone.Transport.stop();
         Tone.Transport.cancel();
         if (typingInterval) clearInterval(typingInterval);
         if (melodyPart) melodyPart.dispose();
-        if (currentSynth) currentSynth.dispose();
-        const noteEl = document.getElementById('live-note');
-        noteEl.innerText = "-";
-        noteEl.classList.remove('active');
+        
+        const area = document.getElementById('userAbc');
+        const status = document.getElementById('live-status');
+
+        if (shouldLocate && lastPlayedIndex > 0) {
+            area.focus();
+            // 將光標停留在最後演奏的音符位置
+            area.setSelectionRange(lastPlayedIndex, lastPlayedIndex);
+            status.innerText = "已停止於 index: " + lastPlayedIndex;
+        } else {
+            status.innerText = "已停止";
+        }
     }
 
-    // 核心預覽與播放
     async function setupAndStartLoop() {
         stopAll();
         await Tone.start();
-        const abc = document.getElementById('userAbc').value;
+        const area = document.getElementById('userAbc');
+        const abc = area.value;
         const msg = document.getElementById('userMsg').value;
-        if (!abc) return alert("請輸入樂譜代碼！");
+        if (!abc) return;
 
         document.getElementById('result-ui').classList.remove('hidden');
+        document.getElementById('live-status').innerText = "播放中...";
         
         currentSynth = new Tone.Synth({ 
-            oscillator: { type: "square" }, 
-            envelope: { attack: 0.01, decay: 0.1, sustain: 0.3, release: 0.8 } 
+            oscillator: { type: "square" }, envelope: { attack: 0.01, decay: 0.1, sustain: 0.3, release: 0.8 } 
         }).toDestination();
 
-        const tokens = abc.match(/(\^?[A-Ga-g][,']*[\d]*|z[\d]*)/g) || [];
+        // 核心改動：正則表達式配合 exec 來取得每個音符在字串中的 index
+        const regex = /(\^?[A-Ga-g][,']*[\d]*|z[\d]*)/g;
+        let match;
+        const melodyData = [];
         let totalTime = 0;
-        const tick = 0.125; 
+        const tick = 0.125;
 
-        const melodyData = tokens.map(t => {
-            const dur = t.match(/\d+/) ? parseInt(t.match(/\d+/)[0]) : 1;
-            const pitch = t.startsWith('z') ? null : parseAbcToTone(t.replace(/\d+/g,''));
-            const obj = { time: totalTime * tick, pitch: pitch, duration: (dur * tick * 0.8) + "s", raw: t.replace(/\d+/g,'') };
+        while ((match = regex.exec(abc)) !== null) {
+            const token = match[0];
+            const startIndex = match.index;
+            const endIndex = startIndex + token.length;
+            const durMatch = token.match(/\d+/);
+            const dur = durMatch ? parseInt(durMatch[0]) : 1;
+            const pitch = token.startsWith('z') ? null : parseAbcToTone(token.replace(/\d+/g, ''));
+            
+            melodyData.push({
+                time: totalTime * tick,
+                pitch: pitch,
+                duration: (dur * tick * 0.8) + "s",
+                startIdx: startIndex,
+                endIdx: endIndex
+            });
             totalTime += dur;
-            return obj;
-        });
+        }
 
         const loopDuration = totalTime * tick;
         melodyPart = new Tone.Part((time, n) => {
-            if (n.pitch) {
-                currentSynth.triggerAttackRelease(n.pitch, n.duration, time);
-                // 同步更新「2. 留言與預覽」旁的音符標示
-                Tone.Draw.schedule(() => {
-                    const noteEl = document.getElementById('live-note');
-                    noteEl.innerText = n.raw.replace('^', '♯');
-                    noteEl.classList.add('active');
-                    setTimeout(() => noteEl.classList.remove('active'), 150);
-                }, time);
-            }
+            if (n.pitch) currentSynth.triggerAttackRelease(n.pitch, n.duration, time);
+            
+            // 實時更新 Textarea 高亮
+            Tone.Draw.schedule(() => {
+                lastPlayedIndex = n.endIdx; // 紀錄進度
+                area.focus();
+                area.setSelectionRange(n.startIdx, n.endIdx);
+            }, time);
         }, melodyData);
         
         melodyPart.loop = true;
         melodyPart.loopEnd = loopDuration;
         melodyPart.start(0);
 
-        // 打字機循環
+        // 文字同步
         Tone.Transport.scheduleRepeat(time => {
             Tone.Draw.schedule(() => {
                 const el = document.getElementById('typing-text');
@@ -194,7 +212,7 @@
         return note.toUpperCase() + sharp + oct;
     }
 
-    // MIDI 上傳邏輯
+    // MIDI & QR 邏輯 (維持穩定性)
     let currentMidi = null;
     async function handleMidiUpload() {
         const file = document.getElementById('midiInput').files[0];
@@ -221,22 +239,20 @@
         document.getElementById('userAbc').value = abc.trim();
     }
 
-    function generateQR(isAuto = false) {
-        const abc = document.getElementById('userAbc').value;
-        const msg = document.getElementById('userMsg').value;
-        if(!abc) return;
-        const compressed = LZString.compressToEncodedURIComponent(abc);
-        const url = `${window.location.origin}${window.location.pathname}?t=${encodeURIComponent(msg)}&v=2&abc=${compressed}`;
-        
+    function generateQR() {
+        const compressed = LZString.compressToEncodedURIComponent(document.getElementById('userAbc').value);
+        const url = `${window.location.origin}${window.location.pathname}?t=${encodeURIComponent(document.getElementById('userMsg').value)}&v=2&abc=${compressed}`;
         document.getElementById('result-ui').classList.remove('hidden');
-        document.getElementById('url-display').innerText = url;
         const qr = document.getElementById('qrcode-container');
         qr.innerHTML = "";
         new QRCode(qr, { text: url, width: 140, height: 140 });
-        if(!isAuto) qr.scrollIntoView({ behavior: 'smooth' });
+        alert("分享連結已準備好！");
     }
 
-    function copyUrl() { navigator.clipboard.writeText(document.getElementById('url-display').innerText).then(() => alert("已複製！")); }
+    function copyUrl() {
+        const url = `${window.location.origin}${window.location.pathname}?t=${encodeURIComponent(document.getElementById('userMsg').value)}&v=2&abc=${LZString.compressToEncodedURIComponent(document.getElementById('userAbc').value)}`;
+        navigator.clipboard.writeText(url).then(() => alert("連結複製成功！"));
+    }
 </script>
 </body>
 </html>
