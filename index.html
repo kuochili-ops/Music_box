@@ -31,7 +31,10 @@
 
         #typing-text { font-size: 1.1rem; font-weight: 700; color: #2d3436; text-align: center; width: 100%; line-height: 1.5; min-height: 4em; }
 
-        /* 製作介面佈局 */
+        #qrcode-container { margin-top: auto; padding: 5px; background: white; border: 1px solid #eee; border-radius: 10px; cursor: pointer; transition: transform 0.2s; }
+        #qrcode-container:hover { transform: scale(1.05); }
+        #qrcode-tip { font-size: 9px; color: #b2bec3; margin-top: 5px; }
+
         .editor-box { background: white; padding: 20px; border-radius: 20px; box-shadow: 0 10px 30px rgba(0,0,0,0.1); width: 90%; max-width: 400px; margin-bottom: 20px; }
         textarea { width: 100%; height: 80px; background: #2d3436; color: #74b9ff; font-family: monospace; padding: 12px; border-radius: 10px; border: none; font-size: 12px; margin-top: 5px; box-sizing: border-box;}
         button { width: 100%; padding: 12px; border-radius: 10px; border: none; font-weight: bold; cursor: pointer; margin-top: 10px; }
@@ -43,28 +46,22 @@
 
 <div id="editor-ui" class="editor-box">
     <h2 style="margin:0 0 15px 0; color:var(--primary); text-align:center; font-size: 1.2rem;">🎹 製作音樂影像賀卡</h2>
-    
-    <label style="font-weight:bold; font-size:14px;">1. 匯入音樂 (MIDI)</label>
-    <input type="file" id="midiInput" accept=".mid,.midi" onchange="handleMidiUpload()" style="font-size: 12px; margin: 5px 0 15px 0;">
-    
+    <input type="file" id="midiInput" accept=".mid,.midi" onchange="handleMidiUpload()" style="font-size: 12px;">
     <div id="midi-tool" class="hidden">
-        <select id="midiTracks" style="width:100%; padding:8px; border-radius:8px; margin-bottom:10px;"></select>
+        <select id="midiTracks" style="width:100%; padding:8px; border-radius:8px; margin-top:5px;"></select>
         <button onclick="convertToAbc()" style="background:#0984e3; color:white;">⚡ 轉換為樂譜</button>
     </div>
-
-    <label style="font-weight:bold; font-size:14px;">2. 設定內容與試聽</label>
-    <input type="text" id="userMsg" value="祝你今天有個旋律般的好心情！" style="width:100%; padding:10px; box-sizing:border-box; border:1px solid #ddd; border-radius:10px; margin: 5px 0;">
-    <textarea id="userAbc" spellcheck="false" placeholder="樂譜代碼會顯示在這裡..."></textarea>
-    
-    <button id="previewBtn" onclick="togglePreview()" style="background:#00b894; color:white;">▶️ 播放/停止試聽</button>
-    <button onclick="generateShareLink()" class="btn-main" style="font-size:1rem; height: 50px;">📲 生成並複製分享網址</button>
+    <input type="text" id="userMsg" value="祝你今天有個旋律般的好心情！" style="width:100%; padding:10px; box-sizing:border-box; border:1px solid #ddd; border-radius:10px; margin: 10px 0;">
+    <textarea id="userAbc" spellcheck="false"></textarea>
+    <button onclick="togglePreview()" style="background:#00b894; color:white;">▶️ 播放/停止試聽</button>
+    <button onclick="generateShareLink()" class="btn-main">📲 生成並複製分享網址</button>
 </div>
 
-<div id="card-container" class="hidden" onclick="openGreetingCard()">
-    <div id="card-cover">
+<div id="card-container" class="hidden">
+    <div id="card-cover" onclick="openGreetingCard()">
         <div style="font-size: 60px;">🎁</div>
         <h2 id="cover-title">專屬音樂驚喜</h2>
-        <p>點擊開啟這份禮物</p>
+        <p>點擊開啟禮物</p>
     </div>
     <div id="card-left-inner">
         <img id="display-img" src="IMG_5998.jpeg" alt="Memories">
@@ -72,8 +69,11 @@
     <div id="card-right-inner">
         <div id="piano-inner-container"></div>
         <div id="typing-text"></div>
-        <div id="qrcode-container" style="margin-top: auto; opacity: 0.5;"></div>
-        <button onclick="location.href=window.location.pathname" style="background:none; border:none; color:#b2bec3; font-size: 10px; text-decoration: underline;">我也要製作賀卡</button>
+        
+        <div id="qrcode-container" title="點擊複製或重新連結" onclick="copyCurrentUrl()"></div>
+        <div id="qrcode-tip">點擊 QR Code 可複製連結</div>
+        
+        <button onclick="location.href=window.location.pathname" style="background:none; border:none; color:#b2bec3; font-size: 10px; text-decoration: underline; margin-top:10px;">我也要製作賀卡</button>
     </div>
 </div>
 
@@ -81,6 +81,32 @@
     let isPlaying = false, typingInterval = null, melodyPart = null, sampler = null;
     const params = new URLSearchParams(window.location.search);
 
+    window.onload = () => {
+        if (params.has('abc')) {
+            document.getElementById('editor-ui').classList.add('hidden');
+            document.getElementById('card-container').classList.remove('hidden');
+            let abc = params.get('abc');
+            if (params.get('v') === '2') abc = LZString.decompressFromEncodedURIComponent(abc);
+            document.getElementById('userAbc').value = abc;
+            document.getElementById('userMsg').value = params.get('t') ? decodeURIComponent(params.get('t')) : "專屬驚喜";
+            
+            // 生成可點擊的 QR Code
+            new QRCode(document.getElementById('qrcode-container'), {
+                text: window.location.href,
+                width: 70,
+                height: 70,
+                correctLevel : QRCode.CorrectLevel.H
+            });
+        }
+    };
+
+    function copyCurrentUrl() {
+        navigator.clipboard.writeText(window.location.href).then(() => {
+            alert("連結已複製到剪貼簿！可以發送給其他朋友。");
+        });
+    }
+
+    // --- 其餘邏輯保持不變 ---
     const notesList = [
         { n: "C4", b: false }, { n: "C#4", b: true }, { n: "D4", b: false }, { n: "D#4", b: true },
         { n: "E4", b: false }, { n: "F4", b: false }, { n: "F#4", b: true }, { n: "G4", b: false },
@@ -90,22 +116,6 @@
         { n: "G#5", b: true }, { n: "A5", b: false }, { n: "A#5", b: true }, { n: "B5", b: false }
     ];
 
-    window.onload = () => {
-        // 如果網址有參數，代表是收訊者模式
-        if (params.has('abc')) {
-            document.getElementById('editor-ui').classList.add('hidden');
-            document.getElementById('card-container').classList.remove('hidden');
-            
-            let abc = params.get('abc');
-            if (params.get('v') === '2') abc = LZString.decompressFromEncodedURIComponent(abc);
-            document.getElementById('userAbc').value = abc;
-            document.getElementById('userMsg').value = params.get('t') ? decodeURIComponent(params.get('t')) : "專屬驚喜";
-            
-            // 靜默生成 QR，讓卡片背面有紀念價值
-            new QRCode(document.getElementById('qrcode-container'), { text: window.location.href, width: 60, height: 60 });
-        }
-    };
-
     function injectPiano() {
         const p = document.getElementById('piano-inner-container');
         if (p.innerHTML !== "") return;
@@ -113,7 +123,6 @@
             const div = document.createElement('div');
             div.className = `key ${item.b ? 'black' : ''}`;
             div.id = `key-${item.n.replace('#', 's')}`;
-            // 支援手動彈奏
             div.onmousedown = div.ontouchstart = (e) => {
                 e.preventDefault();
                 if (sampler) sampler.triggerAttackRelease(item.n, "8n");
@@ -125,40 +134,22 @@
     async function openGreetingCard() {
         const container = document.getElementById('card-container');
         if(container.classList.contains('is-open')) return;
-        
         await Tone.start();
-        if (!sampler) {
-            sampler = new Tone.Sampler({
-                urls: { C4: "https://tonejs.github.io/audio/salamander/C4.mp3" },
-                release: 1
-            }).toDestination();
-        }
-
+        if (!sampler) sampler = new Tone.Sampler({ urls: { C4: "https://tonejs.github.io/audio/salamander/C4.mp3" }, release: 1 }).toDestination();
         injectPiano();
         container.classList.add('is-open');
         setTimeout(() => playExperience(true), 800);
     }
 
     async function togglePreview() {
-        const btn = document.getElementById('previewBtn');
-        if (isPlaying) { 
-            stopAll(); 
-            btn.innerText = "▶️ 播放試聽"; 
-            isPlaying = false; 
-        } else { 
-            await Tone.start();
-            if (!sampler) sampler = new Tone.Sampler({ urls: { C4: "https://tonejs.github.io/audio/salamander/C4.mp3" }, release: 1 }).toDestination();
-            playExperience(false); 
-            btn.innerText = "🛑 停止播放"; 
-            isPlaying = true; 
-        }
+        if (isPlaying) { stopAll(); isPlaying = false; }
+        else { await Tone.start(); if (!sampler) sampler = new Tone.Sampler({ urls: { C4: "https://tonejs.github.io/audio/salamander/C4.mp3" }, release: 1 }).toDestination(); playExperience(false); isPlaying = true; }
     }
 
     async function playExperience(showPiano = true) {
         stopAll();
         const abc = document.getElementById('userAbc').value;
         if (!abc) return;
-
         const regex = /(\^?[A-Ga-g][,']*[\d]*|z[\d]*)/g;
         let match, melodyData = [], totalTime = 0, tick = 0.125;
         while ((match = regex.exec(abc)) !== null) {
@@ -167,7 +158,6 @@
             melodyData.push({ time: totalTime * tick, pitch: pitch, duration: (dur * tick * 0.9) + "s" });
             totalTime += parseInt(dur);
         }
-
         melodyPart = new Tone.Part((time, n) => {
             if (n.pitch && sampler) {
                 sampler.triggerAttackRelease(n.pitch, n.duration, time);
@@ -179,10 +169,8 @@
                 }
             }
         }, melodyData);
-        melodyPart.loop = true; 
-        melodyPart.loopEnd = totalTime * tick;
+        melodyPart.loop = true; melodyPart.loopEnd = totalTime * tick;
         melodyPart.start(0);
-
         if(showPiano) {
             const msg = document.getElementById('userMsg').value;
             const el = document.getElementById('typing-text');
@@ -200,8 +188,7 @@
 
     function parseAbcToTone(abcNote) {
         if (!abcNote) return null;
-        let sharp = abcNote.includes('^') ? '#' : '';
-        let note = abcNote.match(/[A-Ga-g]/)[0], oct = (note === note.toLowerCase()) ? 5 : 4;
+        let sharp = abcNote.includes('^') ? '#' : '', note = abcNote.match(/[A-Ga-g]/)[0], oct = (note === note.toLowerCase()) ? 5 : 4;
         oct = oct - (abcNote.match(/,/g) || []).length + (abcNote.match(/'/g) || []).length;
         return note.toUpperCase() + sharp + oct;
     }
@@ -212,14 +199,13 @@
         window.currentMidi = new Midi(await file.arrayBuffer());
         const select = document.getElementById('midiTracks');
         select.innerHTML = "";
-        window.currentMidi.tracks.forEach((t, i) => { if(t.notes.length > 0) select.add(new Option(`軌道 ${i+1} (${t.notes.length}音符)`, i)); });
+        window.currentMidi.tracks.forEach((t, i) => { if(t.notes.length > 0) select.add(new Option(`軌道 ${i+1}`, i)); });
         document.getElementById('midi-tool').classList.remove('hidden');
     }
 
     function convertToAbc() {
         const track = window.currentMidi.tracks[document.getElementById('midiTracks').value];
-        let abc = "";
-        let lastEnd = 0;
+        let abc = ""; let lastEnd = 0;
         track.notes.forEach(note => {
             const wait = note.time - lastEnd;
             if (wait > 0.05) { let z = Math.round(wait * 8); if (z > 0) abc += "z" + (z > 1 ? z : "") + " "; }
@@ -229,21 +215,13 @@
             lastEnd = note.time + note.duration;
         });
         document.getElementById('userAbc').value = abc.trim();
-        alert("轉換成功！");
     }
 
     function generateShareLink() {
-        const abc = document.getElementById('userAbc').value;
-        const msg = document.getElementById('userMsg').value;
-        if(!abc) { alert("請先匯入 MIDI 並轉換為樂譜喔！"); return; }
-        
+        const abc = document.getElementById('userAbc').value, msg = document.getElementById('userMsg').value;
         const compressed = LZString.compressToEncodedURIComponent(abc);
-        const baseUrl = window.location.origin + window.location.pathname;
-        const finalUrl = `${baseUrl}?t=${encodeURIComponent(msg)}&v=2&abc=${compressed}`;
-        
-        navigator.clipboard.writeText(finalUrl).then(() => {
-            alert("✨ 成功！分享網址已複製到剪貼簿。\n現在可以去貼給朋友了！");
-        });
+        const finalUrl = `${window.location.origin}${window.location.pathname}?t=${encodeURIComponent(msg)}&v=2&abc=${compressed}`;
+        navigator.clipboard.writeText(finalUrl).then(() => alert("✨ 成功！分享網址已複製。"));
     }
 </script>
 </body>
