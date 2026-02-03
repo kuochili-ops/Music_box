@@ -21,32 +21,31 @@
         #card-left-inner { position: absolute; width: 100%; height: 100%; top: 0; left: 0; background: #fff; border-radius: 15px 0 0 15px; transform: rotateY(180deg); transform-origin: left; z-index: 9; display: flex; justify-content: center; align-items: center; overflow: hidden; border-right: 1px solid #eee; backface-visibility: hidden; }
         #card-left-inner img { width: 100%; height: 100%; object-fit: cover; }
 
-        #card-right-inner { position: absolute; width: 100%; height: 100%; top: 0; left: 0; background: white; border-radius: 0 15px 15px 0; display: flex; flex-direction: column; align-items: center; padding: 30px 20px; box-sizing: border-box; z-index: 1; }
+        #card-right-inner { position: absolute; width: 100%; height: 100%; top: 0; left: 0; background: white; border-radius: 0 15px 15px 0; display: flex; flex-direction: column; align-items: center; padding: 20px; box-sizing: border-box; z-index: 1; overflow-y: auto; }
 
-        #piano-inner-container { display: flex; width: 100%; height: 75px; background: #333; border-radius: 5px; margin-bottom: 25px; padding: 2px; opacity: 0; transition: opacity 0.5s; }
+        #piano-inner-container { display: flex; width: 100%; height: 80px; background: #333; border-radius: 5px; margin-bottom: 15px; padding: 2px; opacity: 0; transition: opacity 0.5s; cursor: default; }
         #card-container.is-open #piano-inner-container { opacity: 1; }
-        .key { flex: 1; border: 1px solid #ddd; background: white; border-radius: 0 0 3px 3px; position: relative; }
+        .key { flex: 1; border: 1px solid #ddd; background: white; border-radius: 0 0 4px 4px; position: relative; cursor: pointer; }
         .key.black { background: #000; height: 60%; margin-left: -4%; margin-right: -4%; z-index: 2; flex: 0.6; border: none; }
-        .key.active { background: #ff7675 !important; transform: translateY(2px); }
+        .key.active, .key:active { background: #ff7675 !important; transform: translateY(2px); }
 
-        #typing-text { font-size: 1.3rem; font-weight: 700; color: #2d3436; text-align: center; width: 100%; line-height: 1.6; min-height: 5em; }
+        #typing-text { font-size: 1.1rem; font-weight: 700; color: #2d3436; text-align: center; width: 100%; line-height: 1.5; min-height: 3em; margin-bottom: 10px; }
+        #extra-info-for-receiver { width: 100%; font-size: 10px; color: #636e72; background: #f9f9f9; padding: 10px; border-radius: 8px; margin-top: 10px; word-break: break-all; border: 1px dashed #ddd; }
 
         .editor-box { background: white; padding: 25px; border-radius: 20px; box-shadow: 0 10px 30px rgba(0,0,0,0.1); width: 90%; max-width: 400px; margin: 20px; }
-        textarea { width: 100%; height: 100px; background: #2d3436; color: #74b9ff; font-family: monospace; padding: 12px; border-radius: 10px; border: none; font-size: 13px; margin-top: 5px; }
-        .btn-group { display: flex; gap: 8px; margin-top: 15px; }
-        button { flex: 1; padding: 12px; border-radius: 10px; border: none; font-weight: bold; cursor: pointer; transition: all 0.2s; }
-        .btn-main { background: var(--primary); color: white; }
-        .btn-stop { background: #ff7675 !important; color: white !important; }
+        textarea { width: 100%; height: 80px; background: #2d3436; color: #74b9ff; font-family: monospace; padding: 12px; border-radius: 10px; border: none; font-size: 12px; margin-top: 5px; }
+        button { padding: 12px; border-radius: 10px; border: none; font-weight: bold; cursor: pointer; }
+        .btn-main { background: var(--primary); color: white; width: 100%; margin-top: 10px; }
         .hidden { display: none !important; }
     </style>
 </head>
 <body>
 
-<div id="card-container" class="hidden" onclick="openGreetingCard()">
-    <div id="card-cover">
-        <div style="font-size: 70px;">🎁</div>
+<div id="card-container" class="hidden">
+    <div id="card-cover" onclick="openGreetingCard()">
+        <div style="font-size: 60px;">🎁</div>
         <h2 id="cover-title">專屬音樂驚喜</h2>
-        <p>點擊翻開卡片</p>
+        <p style="font-size: 14px;">點擊翻開卡片</p>
     </div>
     <div id="card-left-inner">
         <img id="display-img" src="IMG_5998.jpeg" alt="Memories">
@@ -54,11 +53,13 @@
     <div id="card-right-inner">
         <div id="piano-inner-container"></div>
         <div id="typing-text"></div>
-        <div id="qrcode-container" style="margin-top:auto;"></div>
-        <div class="btn-group" style="width: 100%; margin-top: 20px;">
-            <button onclick="copyUrl()" style="background:#f1f2f6; font-size: 11px;">📋 複製分享連結</button>
-            <button onclick="resetEditor()" style="background:#fab1a0; color:white; font-size: 11px;">🔄 返回製作</button>
+        <div id="qrcode-container"></div>
+        
+        <div id="extra-info-for-receiver">
+            <strong>🔗 分享連結：</strong><br><span id="info-url">載入中...</span><br><br>
+            <strong>🎵 樂譜字串：</strong><br><span id="info-abc">載入中...</span>
         </div>
+        <button onclick="copyCurrentViewData()" style="background:#f1f2f6; font-size: 10px; margin-top: 10px; width: 100%;">📋 複製此賀卡資訊</button>
     </div>
 </div>
 
@@ -75,18 +76,16 @@
     <div style="background:#f9f9f9; padding:15px; border-radius:12px;">
         <label style="font-weight:bold; font-size:14px;">2. 設定內容</label>
         <input type="text" id="userMsg" value="祝你今天有個旋律般的好心情！" style="width:100%; margin:10px 0; padding:12px; box-sizing:border-box; border:1px solid #ddd; border-radius:10px;">
-        <textarea id="userAbc" spellcheck="false" placeholder="樂譜代碼..."></textarea>
-        <div class="btn-group">
-            <button id="previewBtn" onclick="togglePreview()" style="background:#00b894; color:white;">▶️ 預聽音樂</button>
-        </div>
+        <textarea id="userAbc" spellcheck="false"></textarea>
+        <button id="previewBtn" onclick="togglePreview()" style="width:100%; background:#00b894; color:white; margin-top:10px;">▶️ 播放/停止預聽</button>
     </div>
-    <button onclick="generateShareLink()" style="width:100%; background:var(--primary); color:white; padding:15px; border-radius:12px; font-size:1.1rem; margin-top:20px;">📲 生成分享網址</button>
+    <button onclick="generateShareLink()" class="btn-main" style="font-size:1.1rem; height: 55px;">📲 生成分享連結</button>
 </div>
 
 <script>
-    let isPlaying = false;
-    let typingInterval = null, melodyPart = null, currentSynth = null;
+    let isPlaying = false, typingInterval = null, melodyPart = null, sampler = null;
     const params = new URLSearchParams(window.location.search);
+
     const notesList = [
         { n: "C4", b: false }, { n: "C#4", b: true }, { n: "D4", b: false }, { n: "D#4", b: true },
         { n: "E4", b: false }, { n: "F4", b: false }, { n: "F#4", b: true }, { n: "G4", b: false },
@@ -96,18 +95,16 @@
         { n: "G#5", b: true }, { n: "A5", b: false }, { n: "A#5", b: true }, { n: "B5", b: false }
     ];
 
-    function injectPiano() {
-        const p = document.getElementById('piano-inner-container');
-        if (p.innerHTML !== "") return;
-        notesList.forEach(item => {
-            const div = document.createElement('div');
-            div.className = `key ${item.b ? 'black' : ''}`;
-            div.id = `key-${item.n.replace('#', 's')}`;
-            p.appendChild(div);
-        });
+    // 初始化採樣器 (手動與自動共用)
+    function initSampler() {
+        if (!sampler) {
+            sampler = new Tone.Sampler({
+                urls: { C4: "https://tonejs.github.io/audio/salamander/C4.mp3" },
+                release: 1
+            }).toDestination();
+        }
     }
 
-    // 頁面初始化：檢查網址是否有資料
     window.onload = () => {
         if (params.has('abc')) {
             document.getElementById('editor-ui').classList.add('hidden');
@@ -115,9 +112,30 @@
             let abc = params.get('abc');
             if (params.get('v') === '2') abc = LZString.decompressFromEncodedURIComponent(abc);
             document.getElementById('userAbc').value = abc;
+            document.getElementById('info-abc').innerText = abc;
+            document.getElementById('info-url').innerText = window.location.href;
             document.getElementById('userMsg').value = params.get('t') ? decodeURIComponent(params.get('t')) : "專屬驚喜";
+            new QRCode(document.getElementById('qrcode-container'), { text: window.location.href, width: 80, height: 80 });
         }
     };
+
+    function injectPiano() {
+        const p = document.getElementById('piano-inner-container');
+        if (p.innerHTML !== "") return;
+        notesList.forEach(item => {
+            const div = document.createElement('div');
+            div.className = `key ${item.b ? 'black' : ''}`;
+            div.id = `key-${item.n.replace('#', 's')}`;
+            
+            // 綁定手動彈奏事件
+            div.onmousedown = div.ontouchstart = (e) => {
+                e.preventDefault(); e.stopPropagation();
+                if (sampler) sampler.triggerAttackRelease(item.n, "8n");
+            };
+            
+            p.appendChild(div);
+        });
+    }
 
     async function openGreetingCard() {
         const container = document.getElementById('card-container');
@@ -125,34 +143,20 @@
         injectPiano();
         container.classList.add('is-open');
         await Tone.start();
+        initSampler(); // 確保採樣器就緒
         setTimeout(() => playExperience(true), 800);
     }
 
     async function togglePreview() {
         const btn = document.getElementById('previewBtn');
-        if (isPlaying) {
-            stopAll();
-            btn.innerText = "▶️ 預聽音樂";
-            btn.classList.remove('btn-stop');
-            isPlaying = false;
-        } else {
-            await Tone.start();
-            playExperience(false);
-            btn.innerText = "🛑 停止預聽";
-            btn.classList.add('btn-stop');
-            isPlaying = true;
-        }
+        if (isPlaying) { stopAll(); btn.innerText = "▶️ 播放預聽"; isPlaying = false; }
+        else { await Tone.start(); initSampler(); playExperience(false); btn.innerText = "🛑 停止播放"; isPlaying = true; }
     }
 
     async function playExperience(showPiano = true) {
         stopAll();
         const abc = document.getElementById('userAbc').value;
         if (!abc) return;
-
-        currentSynth = new Tone.Sampler({
-            urls: { C4: "https://tonejs.github.io/audio/salamander/C4.mp3" },
-            release: 1
-        }).toDestination();
 
         const regex = /(\^?[A-Ga-g][,']*[\d]*|z[\d]*)/g;
         let match, melodyData = [], totalTime = 0, tick = 0.125;
@@ -164,15 +168,12 @@
         }
 
         melodyPart = new Tone.Part((time, n) => {
-            if (n.pitch) {
-                currentSynth.triggerAttackRelease(n.pitch, n.duration, time);
+            if (n.pitch && sampler) {
+                sampler.triggerAttackRelease(n.pitch, n.duration, time);
                 if (showPiano) {
                     Tone.Draw.schedule(() => {
                         const keyEl = document.getElementById(`key-${n.pitch.replace('#', 's')}`);
-                        if (keyEl) {
-                            keyEl.classList.add('active');
-                            setTimeout(() => keyEl.classList.remove('active'), 200);
-                        }
+                        if (keyEl) { keyEl.classList.add('active'); setTimeout(() => keyEl.classList.remove('active'), 200); }
                     }, time);
                 }
             }
@@ -183,14 +184,9 @@
         if(showPiano) {
             const msg = document.getElementById('userMsg').value;
             const el = document.getElementById('typing-text');
-            el.innerText = "";
-            let i = 0;
-            typingInterval = setInterval(() => {
-                if (i < msg.length) { el.innerText += msg[i]; i++; }
-                else clearInterval(typingInterval);
-            }, 150);
+            el.innerText = ""; let i = 0;
+            typingInterval = setInterval(() => { if (i < msg.length) { el.innerText += msg[i]; i++; } else clearInterval(typingInterval); }, 150);
         }
-
         Tone.Transport.start();
     }
 
@@ -198,18 +194,12 @@
         Tone.Transport.stop(); Tone.Transport.cancel();
         if (typingInterval) clearInterval(typingInterval);
         if (melodyPart) melodyPart.dispose();
-        if (currentSynth) currentSynth.dispose();
-    }
-
-    function resetEditor() {
-        location.href = window.location.origin + window.location.pathname;
     }
 
     function parseAbcToTone(abcNote) {
         if (!abcNote) return null;
         let sharp = abcNote.includes('^') ? '#' : '';
-        let note = abcNote.match(/[A-Ga-g]/)[0];
-        let oct = (note === note.toLowerCase()) ? 5 : 4;
+        let note = abcNote.match(/[A-Ga-g]/)[0], oct = (note === note.toLowerCase()) ? 5 : 4;
         oct = oct - (abcNote.match(/,/g) || []).length + (abcNote.match(/'/g) || []).length;
         return note.toUpperCase() + sharp + oct;
     }
@@ -230,8 +220,7 @@
         track.notes.forEach(note => {
             const wait = note.time - lastEnd;
             if (wait > 0.05) { let z = Math.round(wait * 8); if (z > 0) abc += "z" + (z > 1 ? z : "") + " "; }
-            let p = note.pitch.replace(/[0-9]/g, '').replace('#', '^');
-            let oct = note.octave;
+            let p = note.pitch.replace(/[0-9]/g, '').replace('#', '^'), oct = note.octave;
             let fn = (oct === 4) ? p.toUpperCase() : (oct === 5) ? p.toLowerCase() : (oct < 4) ? p.toUpperCase() + ",".repeat(4-oct) : p.toLowerCase() + "'".repeat(oct-5);
             abc += fn + (Math.round(note.duration * 8) > 1 ? Math.round(note.duration * 8) : "") + " ";
             lastEnd = note.time + note.duration;
@@ -239,27 +228,21 @@
         document.getElementById('userAbc').value = abc.trim();
     }
 
-    // --- 關鍵修復：生成真正的 URL ---
     function generateShareLink() {
-        const abc = document.getElementById('userAbc').value;
-        const msg = document.getElementById('userMsg').value;
+        const abc = document.getElementById('userAbc').value, msg = document.getElementById('userMsg').value;
         const compressed = LZString.compressToEncodedURIComponent(abc);
-        
-        // 取得目前的基礎網址 (處理 GitHub Pages 環境)
         const baseUrl = window.location.protocol + "//" + window.location.host + window.location.pathname;
-        const fullUrl = `${baseUrl}?t=${encodeURIComponent(msg)}&v=2&abc=${compressed}`;
-        
-        const qr = document.getElementById('qrcode-container');
-        qr.innerHTML = ""; 
-        new QRCode(qr, { text: fullUrl, width: 100, height: 100 });
-        
-        alert("分享連結已生成！請使用下方的「複製分享連結」按鈕。");
-        window.currentFullUrl = fullUrl; // 暫存起來供複製使用
+        const finalUrl = `${baseUrl}?t=${encodeURIComponent(msg)}&v=2&abc=${compressed}`;
+        const combined = `🎹 影像賀卡：\n${finalUrl}\n\n💬 留言：${msg}\n\n🎵 樂譜：\n${abc}`;
+        navigator.clipboard.writeText(combined).then(() => alert("成功！「網址+留言+音符」已複製。"));
     }
 
-    function copyUrl() {
-        const url = window.currentFullUrl || location.href;
-        navigator.clipboard.writeText(url).then(() => alert("連結已成功複製到剪貼簿！"));
+    function copyCurrentViewData() {
+        const abc = document.getElementById('info-abc').innerText;
+        const msg = document.getElementById('typing-text').innerText;
+        const url = document.getElementById('info-url').innerText;
+        const combined = `🎹 影像賀卡：\n${url}\n\n💬 留言：${msg}\n\n🎵 樂譜：\n${abc}`;
+        navigator.clipboard.writeText(combined).then(() => alert("資訊已複製！"));
     }
 </script>
 </body>
