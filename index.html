@@ -9,7 +9,7 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/lz-string/1.4.4/lz-string.min.js"></script>
     <script src="https://unpkg.com/@tonejs/midi"></script>
     <style>
-        :root { --primary: #6c5ce7; --bg: #f1f2f6; --soft-red: #ffe3e3; } /* 定義淡紅色 */
+        :root { --primary: #6c5ce7; --bg: #f1f2f6; --soft-red: #ffe3e3; }
         body { font-family: -apple-system, sans-serif; background: var(--bg); margin: 0; display: flex; flex-direction: column; justify-content: center; align-items: center; min-height: 100vh; perspective: 2000px; overflow: hidden; }
         
         #card-container { width: 350px; height: 500px; position: relative; transform-style: preserve-3d; transition: transform 1.2s cubic-bezier(0.4, 0, 0.2, 1); cursor: pointer; }
@@ -20,7 +20,7 @@
 
         #card-cover { position: absolute; width: 100%; height: 100%; background: var(--primary); color: white; border-radius: 0 15px 15px 0; display: flex; flex-direction: column; justify-content: center; align-items: center; backface-visibility: hidden; box-shadow: 10px 0 20px rgba(0,0,0,0.1); }
         
-        /* 圖片頁優化：淡紅色底、移除黑色/陰影線條 */
+        /* 圖片頁優化：透明 PNG 搭配淡紅背景 */
         #card-left-inner { 
             position: absolute; width: 100%; height: 100%; 
             background-color: var(--soft-red); 
@@ -30,12 +30,11 @@
             border-radius: 15px 0 0 15px; 
             transform: rotateY(180deg); 
             backface-visibility: hidden; 
-            display: flex; justify-content: center; align-items: center; 
-            border: none; /* 移除任何邊框線 */
-            box-shadow: none;
+            border: none;
+            outline: none;
         }
 
-        #card-right-inner { position: absolute; width: 100%; height: 100%; top: 0; left: 0; background: white; border-radius: 0 15px 15px 0; display: flex; flex-direction: column; align-items: center; padding: 25px 20px; box-sizing: border-box; z-index: 10; border-left: none; }
+        #card-right-inner { position: absolute; width: 100%; height: 100%; top: 0; left: 0; background: white; border-radius: 0 15px 15px 0; display: flex; flex-direction: column; align-items: center; padding: 25px 20px; box-sizing: border-box; z-index: 10; border: none; }
         
         #piano-inner-container { display: flex; width: 100%; height: 70px; background: #333; border-radius: 8px; margin-bottom: 20px; padding: 3px; opacity: 0; transition: opacity 0.5s; }
         #card-container.is-open #piano-inner-container { opacity: 1; }
@@ -97,7 +96,7 @@
             if (this.part) { this.part.dispose(); this.part = null; }
             if (this.typingInterval) clearInterval(this.typingInterval);
             this.isPlaying = false;
-            document.getElementById('playBtn').innerText = "▶️ 播放 / 停止試聽";
+            document.getElementById('playBtn').innerText = "▶️ 播放 / 試聽";
         },
         play(abcStr, isFinal = false) {
             this.stop();
@@ -152,7 +151,8 @@
         const leftPage = document.getElementById('card-left-inner');
         const img = new Image();
         img.onload = () => { leftPage.style.backgroundImage = `url('${img.src}')`; };
-        img.src = "IMG_5998.jpeg"; 
+        // 更換為透明背景的 white6.png
+        img.src = "white6.png"; 
 
         if (urlParams.has('abc')) {
             document.getElementById('editor-ui').classList.add('hidden');
