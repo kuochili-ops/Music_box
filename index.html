@@ -11,33 +11,50 @@
     <style>
         :root { --primary: #6c5ce7; --bg: #f1f2f6; }
         body { font-family: -apple-system, sans-serif; background: var(--bg); margin: 0; display: flex; flex-direction: column; justify-content: center; align-items: center; min-height: 100vh; perspective: 2000px; overflow-x: hidden; }
+        
         #card-container { width: 350px; height: 500px; position: relative; transform-style: preserve-3d; transition: transform 1.2s cubic-bezier(0.4, 0, 0.2, 1); cursor: pointer; }
         #card-container.is-open { transform: translateX(50%); }
+
+        /* 封面 */
         #card-cover { position: absolute; width: 100%; height: 100%; top: 0; left: 0; background: var(--primary); color: white; border-radius: 0 15px 15px 0; display: flex; flex-direction: column; justify-content: center; align-items: center; z-index: 100; transform-origin: left; transition: transform 1.2s; backface-visibility: hidden; box-shadow: 10px 0 20px rgba(0,0,0,0.1); }
         #card-container.is-open #card-cover { transform: rotateY(-180deg); }
-        #card-left-inner { position: absolute; width: 100%; height: 100%; top: 0; left: 0; background: #fff; border-radius: 15px 0 0 15px; transform: rotateY(180deg); transform-origin: left; z-index: 50; display: flex; justify-content: center; align-items: center; backface-visibility: hidden; border-right: 1px solid #eee; overflow: hidden; }
-        #card-left-inner img { width: 100%; height: 100%; object-fit: cover; display: block; }
+        
+        /* 左側內頁 (圖片頁) - 翻開後必須在最前層 */
+        #card-left-inner { 
+            position: absolute; width: 100%; height: 100%; top: 0; left: 0; 
+            background: #fff; border-radius: 15px 0 0 15px; 
+            transform: rotateY(180deg); transform-origin: left; 
+            z-index: 80; display: flex; justify-content: center; align-items: center; 
+            backface-visibility: hidden; border-right: 1px solid #eee; overflow: hidden; 
+        }
+        #card-left-inner img { width: 100%; height: 100%; object-fit: cover; display: block; pointer-events: none; }
+
+        /* 右側內頁 (內容頁) */
         #card-right-inner { position: absolute; width: 100%; height: 100%; top: 0; left: 0; background: white; border-radius: 0 15px 15px 0; display: flex; flex-direction: column; align-items: center; padding: 25px 20px; box-sizing: border-box; z-index: 10; }
+        
         #piano-inner-container { display: flex; width: 100%; height: 75px; background: #333; border-radius: 8px; margin-bottom: 20px; padding: 3px; opacity: 0; transition: opacity 0.5s; }
         #card-container.is-open #piano-inner-container { opacity: 1; }
         .key { flex: 1; border: 1px solid #ddd; background: white; border-radius: 0 0 4px 4px; }
         .key.black { background: #000; height: 60%; margin-left: -4%; margin-right: -4%; z-index: 15; flex: 0.6; border: none; }
         .key.active { background: #ff7675 !important; }
+
+        /* 編輯器 */
         .editor-box { background: white; padding: 20px; border-radius: 20px; box-shadow: 0 10px 30px rgba(0,0,0,0.1); width: 90%; max-width: 400px; margin: 20px; z-index: 200; }
         #userAbc { width: 100%; height: 100px; padding: 10px; border: 1px solid #ddd; border-radius: 10px; background: #2d3436; color: #74b9ff; font-family: monospace; font-size: 14px; margin: 5px 0; resize: none; }
         input[type="text"] { width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 10px; margin-bottom: 10px; box-sizing: border-box; }
         .status-tag { font-size: 11px; padding: 2px 8px; border-radius: 10px; background: #eee; }
         .status-tag.active { background: #00b894; color: white; }
+
         button { width: 100%; padding: 12px; border-radius: 10px; border: none; font-weight: bold; cursor: pointer; background: var(--primary); color: white; margin-top: 8px; }
         #typing-text { font-size: 1.1rem; font-weight: 700; color: #2d3436; text-align: center; min-height: 5em; white-space: pre-wrap; }
-        #qrcode-container { margin-top: auto; padding: 5px; background: white; border: 1px solid #eee; display: flex; justify-content: center; }
+        #qrcode-container { margin-top: auto; padding: 5px; background: white; display: flex; justify-content: center; }
         .hidden { display: none !important; }
     </style>
 </head>
 <body>
 
 <div id="editor-ui" class="editor-box">
-    <h3 style="text-align:center; color:var(--primary); margin:0 0 15px 0;">🎹 賀卡製作工作台</h3>
+    <h3 style="text-align:center; color:var(--primary); margin:0 0 15px 0;">🎹 賀卡製作</h3>
     <input type="file" id="midiInput" accept=".mid,.midi" onchange="handleMidiUpload()">
     <div id="midi-tool" class="hidden">
         <select id="midiTracks" style="width:100%; padding:8px; margin-bottom:10px; border-radius:10px;"></select>
@@ -61,7 +78,7 @@
         <p>點擊翻開</p>
     </div>
     <div id="card-left-inner">
-        <img id="main-photo" src="./wusachi.png" alt="Memories">
+        <img id="main-photo" src="wusachi.png" alt="Memories">
     </div>
     <div id="card-right-inner">
         <div id="piano-inner-container"></div>
@@ -71,7 +88,7 @@
 </div>
 
 <script>
-    // 模組化音樂管理器
+    // 模組化音樂管理器 (Module)
     const MusicModule = {
         isPlaying: false,
         sampler: null,
@@ -112,8 +129,7 @@
             this.part = new Tone.Part((time, n) => {
                 if (n.pitch && this.sampler) this.sampler.triggerAttackRelease(n.pitch, n.duration, time);
                 Tone.Draw.schedule(() => {
-                    abcArea.focus();
-                    abcArea.setSelectionRange(n.start, n.end);
+                    if(!isFinal) { abcArea.focus(); abcArea.setSelectionRange(n.start, n.end); }
                     if (n.pitch) {
                         const el = document.getElementById(`key-${n.pitch.replace('#', 's')}`);
                         if (el) { el.classList.add('active'); setTimeout(() => el.classList.remove('active'), 200); }
@@ -144,9 +160,13 @@
         }
     };
 
-    // 介面控制邏輯
     window.onload = () => {
         const urlParams = new URLSearchParams(window.location.search);
+        
+        // 圖片強制刷新快取
+        const img = document.getElementById('main-photo');
+        img.src = "wusachi.png?v=" + Date.now();
+
         if (urlParams.has('abc')) {
             document.getElementById('editor-ui').classList.add('hidden');
             document.getElementById('card-container').classList.remove('hidden');
@@ -156,7 +176,7 @@
             const t = urlParams.get('t');
             document.getElementById('userMsg').value = t ? decodeURIComponent(t) : "專屬驚喜";
             
-            new QRCode(document.getElementById('qrcode-container'), { text: window.location.href, width: 100, height: 100 });
+            new QRCode(document.getElementById('qrcode-container'), { text: window.location.href, width: 80, height: 80 });
         }
         injectPiano();
     };
