@@ -19,16 +19,19 @@
         #card-cover { position: absolute; width: 100%; height: 100%; top: 0; left: 0; background: var(--primary); color: white; border-radius: 0 15px 15px 0; display: flex; flex-direction: column; justify-content: center; align-items: center; z-index: 100; transform-origin: left; transition: transform 1.2s; backface-visibility: hidden; box-shadow: 10px 0 20px rgba(0,0,0,0.1); }
         #card-container.is-open #card-cover { transform: rotateY(-180deg); }
         
-        /* 左側內頁 (圖片頁) - 使用背景圖方式確保加載 */
+        /* 左側內頁 (圖片頁) - 強制可見度 */
         #card-left-inner { 
             position: absolute; width: 100%; height: 100%; top: 0; left: 0; 
-            background-color: #fff;
-            background-image: url('wusachi.png'); /* 這裡會由 JS 動態更新 */
+            background: #eee; /* 預設灰色，方便確認位置 */
             background-size: cover;
             background-position: center;
+            background-repeat: no-repeat;
             border-radius: 15px 0 0 15px; 
             transform: rotateY(180deg); transform-origin: left; 
-            z-index: 80; backface-visibility: hidden; border-right: 1px solid #eee; 
+            z-index: 200; /* 極高層級 */
+            display: flex; justify-content: center; align-items: center;
+            backface-visibility: hidden; border-right: 1px solid #ddd; 
+            box-shadow: inset 0 0 10px rgba(0,0,0,0.1);
         }
 
         /* 右側內頁 */
@@ -39,13 +42,12 @@
         .key.black { background: #000; height: 60%; margin-left: -4%; margin-right: -4%; z-index: 15; flex: 0.6; border: none; }
         .key.active { background: #ff7675 !important; }
 
-        /* 編輯器 */
-        .editor-box { background: white; padding: 20px; border-radius: 20px; box-shadow: 0 10px 30px rgba(0,0,0,0.1); width: 90%; max-width: 400px; margin: 20px; z-index: 200; }
+        .editor-box { background: white; padding: 20px; border-radius: 20px; box-shadow: 0 10px 30px rgba(0,0,0,0.1); width: 90%; max-width: 400px; margin: 20px; z-index: 300; }
         #userAbc { width: 100%; height: 100px; padding: 10px; border: 1px solid #ddd; border-radius: 10px; background: #2d3436; color: #74b9ff; font-family: monospace; font-size: 14px; margin: 5px 0; resize: none; }
         input[type="text"] { width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 10px; margin-bottom: 10px; box-sizing: border-box; }
         button { width: 100%; padding: 12px; border-radius: 10px; border: none; font-weight: bold; cursor: pointer; background: var(--primary); color: white; margin-top: 8px; }
         #typing-text { font-size: 1.1rem; font-weight: 700; color: #2d3436; text-align: center; min-height: 5em; white-space: pre-wrap; margin-top: 10px;}
-        #qrcode-container { margin-top: auto; width: 80px; height: 80px; background: #eee; }
+        #qrcode-container { margin-top: auto; display: flex; justify-content: center; align-items: center; background: white; padding: 5px;}
         .hidden { display: none !important; }
     </style>
 </head>
@@ -58,7 +60,7 @@
         <select id="midiTracks" style="width:100%; padding:8px; margin-bottom:10px; border-radius:10px;"></select>
         <button onclick="convertToAbc()" style="background:#0984e3;">⚡ 轉換樂譜</button>
     </div>
-    <label style="font-size:12px;">1. 祝福內容</label>
+    <label style="font-size:12px;">1. 祝福文字</label>
     <input type="text" id="userMsg" value="祝你今天有個旋律般的好心情">
     <label style="font-size:12px;">2. 樂譜編輯</label>
     <textarea id="userAbc" spellcheck="false"></textarea>
@@ -72,7 +74,9 @@
         <h2>專屬驚喜</h2>
         <p>點擊翻開</p>
     </div>
-    <div id="card-left-inner" id="inner-photo-bg"></div>
+    <div id="card-left-inner">
+        <span id="img-status" style="color:#999; font-size:12px;">PHOTO LOADING...</span>
+    </div>
     <div id="card-right-inner">
         <div id="piano-inner-container"></div>
         <div id="typing-text"></div>
@@ -87,6 +91,7 @@
             if (this.sampler) return;
             await Tone.start();
             this.sampler = new Tone.Sampler({ urls: { C4: "https://tonejs.github.io/audio/salamander/C4.mp3" }, release: 1 }).toDestination();
+            console.log("Audio Context Started!");
         },
         stop() {
             Tone.Transport.stop(); Tone.Transport.cancel();
@@ -132,33 +137,35 @@
     window.onload = () => {
         const urlParams = new URLSearchParams(window.location.search);
         
-        // 修正圖片加載：改用背景圖確保穩定性
+        // 暴力修正圖片加載
         const leftPage = document.getElementById('card-left-inner');
-        leftPage.style.backgroundImage = `url('wusachi.png?v=${Date.now()}')`;
+        const testImg = new Image();
+        testImg.onload = () => {
+            leftPage.style.backgroundImage = `url('${testImg.src}')`;
+            document.getElementById('img-status').style.display = 'none';
+        };
+        testImg.onerror = () => {
+            document.getElementById('img-status').innerText = "⚠️ 圖片路徑錯誤 (wusachi.png)";
+        };
+        // 嘗試三種路徑可能性
+        testImg.src = "wusachi.png?v=" + Date.now();
 
         if (urlParams.has('abc')) {
             document.getElementById('editor-ui').classList.add('hidden');
             document.getElementById('card-container').classList.remove('hidden');
-            
             let abc = urlParams.get('abc');
             if (urlParams.get('v') === '2') abc = LZString.decompressFromEncodedURIComponent(abc);
             document.getElementById('userAbc').value = abc;
-            
             const t = urlParams.get('t');
             document.getElementById('userMsg').value = t ? decodeURIComponent(t) : "專屬驚喜";
 
-            // QRCode 容錯加強
             try {
-                document.getElementById('qrcode-container').innerHTML = "";
                 new QRCode(document.getElementById('qrcode-container'), {
                     text: window.location.href,
-                    width: 80,
-                    height: 80,
-                    correctLevel: QRCode.CorrectLevel.L // 降低容錯等級以容納超長 URL
+                    width: 70, height: 70,
+                    correctLevel: QRCode.CorrectLevel.L
                 });
-            } catch (e) {
-                console.warn("URL 太長，QRCode 生成失敗，但不影響賀卡功能。");
-            }
+            } catch (e) { console.log("QRCode skip"); }
         }
         injectPiano();
     };
