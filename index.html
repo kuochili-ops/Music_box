@@ -16,10 +16,12 @@
         #card-container.is-open { transform: translateX(50%); }
         #card-cover { position: absolute; width: 100%; height: 100%; top: 0; left: 0; background: var(--primary); color: white; border-radius: 0 15px 15px 0; display: flex; flex-direction: column; justify-content: center; align-items: center; z-index: 30; transform-origin: left; transition: transform 1.2s; backface-visibility: hidden; }
         #card-container.is-open #card-cover { transform: rotateY(-180deg); }
+        
+        /* 左側內頁：圖片顯示區域 */
         #card-left-inner { position: absolute; width: 100%; height: 100%; top: 0; left: 0; background: #fff; border-radius: 15px 0 0 15px; transform: rotateY(180deg); transform-origin: left; z-index: 20; display: flex; justify-content: center; align-items: center; backface-visibility: hidden; border-right: 1px solid #eee; overflow: hidden; }
         #card-left-inner img { width: 100%; height: 100%; object-fit: cover; }
-        #card-right-inner { position: absolute; width: 100%; height: 100%; top: 0; left: 0; background: white; border-radius: 0 15px 15px 0; display: flex; flex-direction: column; align-items: center; padding: 25px 20px; box-sizing: border-box; z-index: 10; }
 
+        #card-right-inner { position: absolute; width: 100%; height: 100%; top: 0; left: 0; background: white; border-radius: 0 15px 15px 0; display: flex; flex-direction: column; align-items: center; padding: 25px 20px; box-sizing: border-box; z-index: 10; }
         #piano-inner-container { display: flex; width: 100%; height: 75px; background: #333; border-radius: 8px; margin-bottom: 20px; padding: 3px; opacity: 0; transition: opacity 0.5s; }
         #card-container.is-open #piano-inner-container { opacity: 1; }
         .key { flex: 1; border: 1px solid #ddd; background: white; border-radius: 0 0 4px 4px; }
@@ -28,8 +30,6 @@
 
         .editor-box { background: white; padding: 20px; border-radius: 20px; box-shadow: 0 10px 30px rgba(0,0,0,0.1); width: 90%; max-width: 400px; margin: 20px; z-index: 100; }
         #userAbc { width: 100%; height: 100px; padding: 10px; border: 1px solid #ddd; border-radius: 10px; background: #2d3436; color: #74b9ff; font-family: 'Courier New', monospace; font-size: 14px; line-height: 1.5; margin: 5px 0; resize: none; }
-        
-        /* 播放狀態指示燈 */
         .playback-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 5px; }
         .status-tag { font-size: 12px; padding: 2px 8px; border-radius: 10px; background: #eee; color: #636e72; }
         .status-tag.active { background: #00b894; color: white; animation: pulse 1s infinite; }
@@ -45,22 +45,18 @@
 
 <div id="editor-ui" class="editor-box">
     <h3 style="text-align:center; color:var(--primary); margin-top:0;">🎹 賀卡製作</h3>
-    
     <input type="file" id="midiInput" accept=".mid,.midi" onchange="handleMidiUpload()">
     <div id="midi-tool" class="hidden">
         <select id="midiTracks" style="width:100%; padding:8px; margin-bottom:10px; border-radius:10px;"></select>
         <button onclick="convertToAbc()" style="background:#0984e3;">⚡ 轉換樂譜</button>
     </div>
-
     <label style="font-size:12px;">1. 祝福文字</label>
     <input type="text" id="userMsg" value="祝你今天有個旋律般的好心情" style="width:100%; padding:10px; border-radius:10px; border:1px solid #ddd; margin-bottom:10px;">
-
     <div class="playback-header">
-        <label style="font-size:12px;">2. 樂譜編輯 (試播時將標記音符)</label>
+        <label style="font-size:12px;">2. 樂譜編輯 (播放時高亮音符)</label>
         <span id="play-status" class="status-tag">IDLE</span>
     </div>
     <textarea id="userAbc" spellcheck="false"></textarea>
-    
     <button onclick="togglePreview()" style="background:#00b894;">▶️ 播放 / 停止試聽</button>
     <button onclick="generatePureUrl()">🔗 僅複製純網址連結</button>
 </div>
@@ -71,7 +67,9 @@
         <h2>專屬驚喜</h2>
         <p>點擊翻開</p>
     </div>
-    <div id="card-left-inner"><img src="./IMG_5998.jpeg" alt="Memories"></div>
+    <div id="card-left-inner">
+        <img id="main-photo" src="wusachi.png" alt="Card Image">
+    </div>
     <div id="card-right-inner">
         <div id="piano-inner-container"></div>
         <div id="typing-text"></div>
@@ -92,6 +90,10 @@
             document.getElementById('userAbc').value = abc;
             document.getElementById('userMsg').value = urlParams.get('t') ? decodeURIComponent(urlParams.get('t')) : "專屬驚喜";
             new QRCode(document.getElementById('qrcode-container'), { text: window.location.href, width: 80, height: 80 });
+            
+            // 檢查圖片載入情況
+            const img = document.getElementById('main-photo');
+            img.onerror = () => console.error("圖片 wusachi.png 載入失敗，請確認檔案是否存在於根目錄，且檔名大小寫一致。");
         }
         injectPiano('piano-inner-container');
     };
@@ -114,7 +116,7 @@
             statusTag.innerText = "IDLE";
             statusTag.classList.remove('active');
             isPlaying = false;
-            document.getElementById('userAbc').setSelectionRange(0, 0); // 清除選取
+            document.getElementById('userAbc').setSelectionRange(0, 0);
         } else {
             await Tone.start();
             if (!sampler) sampler = new Tone.Sampler({ urls: { C4: "https://tonejs.github.io/audio/salamander/C4.mp3" }, release: 1 }).toDestination();
@@ -130,10 +132,8 @@
         const abcArea = document.getElementById('userAbc');
         const abcStr = abcArea.value;
         const regex = /(\^?[A-Ga-g][,']*[\d]*|z[\d]*)/g;
-        
         let match, melodyData = [], totalTime = 0, tick = 0.125;
         
-        // 解析音符並記錄它們在字串中的位置 (start, end)
         while ((match = regex.exec(abcStr)) !== null) {
             const token = match[0], dur = (token.match(/\d+/) || [1])[0];
             const pitch = token.startsWith('z') ? null : parseAbcToTone(token.replace(/\d+/g, ''));
@@ -150,14 +150,9 @@
         melodyPart = new Tone.Part((time, n) => {
             if (sampler) {
                 if (n.pitch) sampler.triggerAttackRelease(n.pitch, n.duration, time);
-                
-                // 動態同步：高亮編輯器音符
                 Tone.Draw.schedule(() => {
-                    // 1. 高亮 Textarea 文字
                     abcArea.focus();
                     abcArea.setSelectionRange(n.startIndex, n.endIndex);
-                    
-                    // 2. 鋼琴鍵同步 (如果有顯示)
                     if (n.pitch) {
                         const keyEl = document.getElementById(`key-${n.pitch.replace('#', 's')}`);
                         if (keyEl) {
