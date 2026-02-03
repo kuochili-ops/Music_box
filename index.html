@@ -9,7 +9,7 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/lz-string/1.4.4/lz-string.min.js"></script>
     <script src="https://unpkg.com/@tonejs/midi"></script>
     <style>
-        :root { --primary: #6c5ce7; --bg: #f1f2f6; }
+        :root { --primary: #6c5ce7; --bg: #f1f2f6; --accent-red: #d63031; }
         body { font-family: -apple-system, sans-serif; background: var(--bg); margin: 0; display: flex; flex-direction: column; justify-content: center; align-items: center; min-height: 100vh; perspective: 2000px; overflow: hidden; }
         
         #card-container { width: 350px; height: 500px; position: relative; transform-style: preserve-3d; transition: transform 1.2s cubic-bezier(0.4, 0, 0.2, 1); cursor: pointer; }
@@ -19,7 +19,21 @@
         #card-container.is-open #card-flap { transform: rotateY(-180deg); }
 
         #card-cover { position: absolute; width: 100%; height: 100%; background: var(--primary); color: white; border-radius: 0 15px 15px 0; display: flex; flex-direction: column; justify-content: center; align-items: center; backface-visibility: hidden; box-shadow: 10px 0 20px rgba(0,0,0,0.1); }
-        #card-left-inner { position: absolute; width: 100%; height: 100%; background-color: #fff; background-size: cover; background-position: center; border-radius: 15px 0 0 15px; transform: rotateY(180deg); backface-visibility: hidden; display: flex; justify-content: center; align-items: center; border-right: 1px solid #ddd; }
+        
+        /* 圖片頁優化：置中且不裁切 */
+        #card-left-inner { 
+            position: absolute; width: 100%; height: 100%; 
+            background-color: var(--accent-red); 
+            background-size: contain; /* 確保圖片完整顯示 */
+            background-repeat: no-repeat; 
+            background-position: center; /* 置中顯示 */
+            border-radius: 15px 0 0 15px; 
+            transform: rotateY(180deg); 
+            backface-visibility: hidden; 
+            display: flex; justify-content: center; align-items: center; 
+            border-right: 1px solid rgba(255,255,255,0.1); 
+        }
+
         #card-right-inner { position: absolute; width: 100%; height: 100%; top: 0; left: 0; background: white; border-radius: 0 15px 15px 0; display: flex; flex-direction: column; align-items: center; padding: 25px 20px; box-sizing: border-box; z-index: 10; }
         
         #piano-inner-container { display: flex; width: 100%; height: 70px; background: #333; border-radius: 8px; margin-bottom: 20px; padding: 3px; opacity: 0; transition: opacity 0.5s; }
@@ -30,8 +44,6 @@
 
         .editor-box { background: white; padding: 20px; border-radius: 20px; box-shadow: 0 10px 30px rgba(0,0,0,0.1); width: 90%; max-width: 400px; margin: 20px; z-index: 500; }
         #userAbc { width: 100%; height: 100px; padding: 10px; border: 1px solid #ddd; border-radius: 10px; background: #2d3436; color: #74b9ff; font-family: monospace; font-size: 14px; margin: 5px 0; resize: none; outline: none; }
-        
-        /* 播放時的高亮顏色 */
         #userAbc::selection { background: #6c5ce7; color: #fff; }
 
         input[type="text"] { width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 10px; margin-bottom: 10px; box-sizing: border-box; }
@@ -106,12 +118,9 @@
                         const el = document.getElementById(`key-${n.pitch.replace('#', 's')}`);
                         if (el) { el.classList.add('active'); setTimeout(() => el.classList.remove('active'), 150); }
                     }
-                    // 強化高亮標示：即使游標移位也強制選取
                     if (!isFinal) {
-                        textarea.focus();
                         textarea.setSelectionRange(n.start, n.end);
-                        const currentLine = (textarea.value.substr(0, n.start).match(/\n/g) || []).length;
-                        textarea.scrollTop = currentLine * 20 - 40;
+                        textarea.focus();
                     }
                 }, time);
             }, melodyData);
@@ -139,8 +148,6 @@
 
     window.onload = () => {
         const urlParams = new URLSearchParams(window.location.search);
-        
-        // 更新圖片路徑為 IMG_5998.jpeg
         const leftPage = document.getElementById('card-left-inner');
         const img = new Image();
         img.onload = () => { leftPage.style.backgroundImage = `url('${img.src}')`; };
