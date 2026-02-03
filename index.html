@@ -10,42 +10,22 @@
     <script src="https://unpkg.com/@tonejs/midi"></script>
     <style>
         :root { --primary: #6c5ce7; --bg: #f1f2f6; }
-        body { font-family: -apple-system, sans-serif; background: var(--bg); margin: 0; display: flex; flex-direction: column; justify-content: center; align-items: center; min-height: 100vh; perspective: 2000px; }
+        body { font-family: -apple-system, sans-serif; background: var(--bg); margin: 0; display: flex; flex-direction: column; justify-content: center; align-items: center; min-height: 100vh; perspective: 2000px; overflow-x: hidden; }
         
+        /* 卡片容器 */
         #card-container { width: 350px; height: 500px; position: relative; transform-style: preserve-3d; transition: transform 1.2s cubic-bezier(0.4, 0, 0.2, 1); cursor: pointer; }
         #card-container.is-open { transform: translateX(50%); }
 
-        #card-cover { position: absolute; width: 100%; height: 100%; top: 0; left: 0; background: var(--primary); color: white; border-radius: 0 15px 15px 0; display: flex; flex-direction: column; justify-content: center; align-items: center; z-index: 50; transform-origin: left; transition: transform 1.2s; backface-visibility: hidden; box-shadow: 10px 0 20px rgba(0,0,0,0.1); }
+        /* 封面 */
+        #card-cover { position: absolute; width: 100%; height: 100%; top: 0; left: 0; background: var(--primary); color: white; border-radius: 0 15px 15px 0; display: flex; flex-direction: column; justify-content: center; align-items: center; z-index: 100; transform-origin: left; transition: transform 1.2s; backface-visibility: hidden; box-shadow: 10px 0 20px rgba(0,0,0,0.1); }
         #card-container.is-open #card-cover { transform: rotateY(-180deg); }
         
-        /* 強化的左側內頁圖片 CSS */
-        #card-left-inner { 
-            position: absolute; 
-            width: 100%; 
-            height: 100%; 
-            top: 0; 
-            left: 0; 
-            background: #ffffff; 
-            border-radius: 15px 0 0 15px; 
-            transform: rotateY(180deg); 
-            transform-origin: left; 
-            z-index: 40; /* 提高層級 */
-            display: flex; 
-            justify-content: center; 
-            align-items: center; 
-            backface-visibility: hidden; 
-            border-right: 1px solid #eee; 
-            overflow: hidden; 
-        }
-        #card-left-inner img { 
-            width: 100.5%; /* 稍微溢出以消除白邊 */
-            height: 100.5%; 
-            object-fit: cover; 
-            display: block !important; 
-            opacity: 1 !important;
-            visibility: visible !important;
-        }
+        /* 左側內頁：圖片頁 */
+        #card-left-inner { position: absolute; width: 100%; height: 100%; top: 0; left: 0; background: #fff; border-radius: 15px 0 0 15px; transform: rotateY(180deg); transform-origin: left; z-index: 50; display: flex; justify-content: center; align-items: center; backface-visibility: hidden; border-right: 1px solid #eee; overflow: hidden; }
+        #card-left-inner img { width: 100%; height: 100%; object-fit: cover; display: block; border: none; }
+        #card-left-inner.error-box { border: 5px solid red; } /* 偵錯用 */
 
+        /* 右側內頁：文字與鋼琴 */
         #card-right-inner { position: absolute; width: 100%; height: 100%; top: 0; left: 0; background: white; border-radius: 0 15px 15px 0; display: flex; flex-direction: column; align-items: center; padding: 25px 20px; box-sizing: border-box; z-index: 10; }
         #piano-inner-container { display: flex; width: 100%; height: 75px; background: #333; border-radius: 8px; margin-bottom: 20px; padding: 3px; opacity: 0; transition: opacity 0.5s; }
         #card-container.is-open #piano-inner-container { opacity: 1; }
@@ -53,15 +33,16 @@
         .key.black { background: #000; height: 60%; margin-left: -4%; margin-right: -4%; z-index: 15; flex: 0.6; border: none; }
         .key.active { background: #ff7675 !important; }
 
-        .editor-box { background: white; padding: 20px; border-radius: 20px; box-shadow: 0 10px 30px rgba(0,0,0,0.1); width: 90%; max-width: 400px; margin: 20px; z-index: 100; }
-        #userAbc { width: 100%; height: 100px; padding: 10px; border: 1px solid #ddd; border-radius: 10px; background: #2d3436; color: #74b9ff; font-family: 'Courier New', monospace; font-size: 14px; line-height: 1.5; margin: 5px 0; resize: none; }
-        .playback-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 5px; }
-        .status-tag { font-size: 12px; padding: 2px 8px; border-radius: 10px; background: #eee; color: #636e72; }
-        .status-tag.active { background: #00b894; color: white; animation: pulse 1s infinite; }
-        @keyframes pulse { 0% { opacity: 1; } 50% { opacity: 0.7; } 100% { opacity: 1; } }
+        /* 編輯器 */
+        .editor-box { background: white; padding: 20px; border-radius: 20px; box-shadow: 0 10px 30px rgba(0,0,0,0.1); width: 90%; max-width: 400px; margin: 20px; z-index: 200; }
+        #userAbc { width: 100%; height: 100px; padding: 10px; border: 1px solid #ddd; border-radius: 10px; background: #2d3436; color: #74b9ff; font-family: 'Courier New', monospace; font-size: 14px; margin: 5px 0; resize: none; }
+        input[type="text"] { width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 10px; margin-bottom: 10px; box-sizing: border-box; }
+        
+        .status-tag { font-size: 11px; padding: 2px 8px; border-radius: 10px; background: #eee; }
+        .status-tag.active { background: #00b894; color: white; }
 
         button { width: 100%; padding: 12px; border-radius: 10px; border: none; font-weight: bold; cursor: pointer; background: var(--primary); color: white; margin-top: 8px; }
-        #typing-text { font-size: 1.1rem; font-weight: 700; color: #2d3436; text-align: center; min-height: 5em; }
+        #typing-text { font-size: 1.1rem; font-weight: 700; color: #2d3436; text-align: center; min-height: 5em; white-space: pre-wrap; }
         #qrcode-container { margin-top: auto; padding: 5px; background: white; border: 1px solid #eee; }
         .hidden { display: none !important; }
     </style>
@@ -69,21 +50,24 @@
 <body>
 
 <div id="editor-ui" class="editor-box">
-    <h3 style="text-align:center; color:var(--primary); margin-top:0;">🎹 賀卡製作</h3>
+    <h3 style="text-align:center; color:var(--primary); margin:0 0 15px 0;">🎹 賀卡製作工作台</h3>
     <input type="file" id="midiInput" accept=".mid,.midi" onchange="handleMidiUpload()">
     <div id="midi-tool" class="hidden">
         <select id="midiTracks" style="width:100%; padding:8px; margin-bottom:10px; border-radius:10px;"></select>
         <button onclick="convertToAbc()" style="background:#0984e3;">⚡ 轉換樂譜</button>
     </div>
-    <label style="font-size:12px;">1. 祝福文字</label>
-    <input type="text" id="userMsg" value="祝你今天有個旋律般的好心情" style="width:100%; padding:10px; border-radius:10px; border:1px solid #ddd; margin-bottom:10px;">
-    <div class="playback-header">
-        <label style="font-size:12px;">2. 樂譜編輯 (播放時標記音符)</label>
+
+    <label style="font-size:12px;">1. 祝福文字內容</label>
+    <input type="text" id="userMsg" value="祝你今天有個旋律般的好心情">
+
+    <div style="display:flex; justify-content:space-between; align-items:center;">
+        <label style="font-size:12px;">2. 樂譜編輯 (ABC Code)</label>
         <span id="play-status" class="status-tag">IDLE</span>
     </div>
     <textarea id="userAbc" spellcheck="false"></textarea>
+    
     <button onclick="togglePreview()" style="background:#00b894;">▶️ 播放 / 停止試聽</button>
-    <button onclick="generatePureUrl()">🔗 僅複製純網址連結</button>
+    <button onclick="generatePureUrl()">🔗 複製分享連結 (純網址)</button>
 </div>
 
 <div id="card-container" class="hidden" onclick="openGreetingCard()">
@@ -93,7 +77,7 @@
         <p>點擊翻開</p>
     </div>
     <div id="card-left-inner">
-        <img id="main-photo" src="wusachi.png" alt="Memories">
+        <img id="main-photo" src="wusachi.png" onerror="handleImgError(this)">
     </div>
     <div id="card-right-inner">
         <div id="piano-inner-container"></div>
@@ -105,37 +89,57 @@
 <script>
     let isPlaying = false, typingInterval = null, melodyPart = null, sampler = null;
 
+    function handleImgError(img) {
+        console.error("圖片載入失敗，路徑：", img.src);
+        img.parentElement.classList.add('error-box');
+        img.style.display = 'none';
+        const tip = document.createElement('div');
+        tip.innerHTML = "<small style='color:red;padding:10px;text-align:center;'>找不到圖片<br>請檢查 wusachi.png 是否存在</small>";
+        img.parentElement.appendChild(tip);
+    }
+
     window.onload = () => {
         const urlParams = new URLSearchParams(window.location.search);
-        
-        // 強制刷新圖片 src 避免快取
-        const img = document.getElementById('main-photo');
-        img.src = "wusachi.png?v=" + new Date().getTime();
-
         if (urlParams.has('abc')) {
             document.getElementById('editor-ui').classList.add('hidden');
             document.getElementById('card-container').classList.remove('hidden');
+            
+            // 處理 ABC 編碼
             let abc = urlParams.get('abc');
             if (urlParams.get('v') === '2') abc = LZString.decompressFromEncodedURIComponent(abc);
             document.getElementById('userAbc').value = abc;
-            document.getElementById('userMsg').value = urlParams.get('t') ? decodeURIComponent(urlParams.get('t')) : "專屬驚喜";
+            
+            // 處理文字編碼
+            const rawMsg = urlParams.get('t');
+            document.getElementById('userMsg').value = rawMsg ? decodeURIComponent(rawMsg) : "專屬驚喜";
+            
+            // 產生 QR Code (使用當前完整網址)
             new QRCode(document.getElementById('qrcode-container'), { text: window.location.href, width: 80, height: 80 });
+            
+            // 圖片強制重新整理
+            document.getElementById('main-photo').src = "wusachi.png?v=" + Date.now();
         }
         injectPiano('piano-inner-container');
     };
 
-    // --- 保持原本運作良好的音樂與邏輯 ---
-    function injectPiano(targetId) {
-        const p = document.getElementById(targetId); p.innerHTML = "";
-        const notes = ["C4","C#4","D4","D#4","E4","F4","F#4","G4","G#4","A4","A#4","B4","C5","C#5","D5","D#5","E5","F5","F#5","G5","G#5","A5","A#5","B5"];
-        notes.forEach(n => {
-            const div = document.createElement('div');
-            div.className = `key ${n.includes('#') ? 'black' : ''}`;
-            div.id = `key-${n.replace('#', 's')}`;
-            p.appendChild(div);
+    function generatePureUrl() {
+        const abc = document.getElementById('userAbc').value;
+        const msg = document.getElementById('userMsg').value;
+        const compressedAbc = LZString.compressToEncodedURIComponent(abc);
+        
+        const newParams = new URLSearchParams();
+        newParams.set('t', msg); // URLSearchParams 會自動處理 encodeURIComponent
+        newParams.set('v', '2');
+        newParams.set('abc', compressedAbc);
+
+        const finalUrl = window.location.origin + window.location.pathname + '?' + newParams.toString();
+        
+        navigator.clipboard.writeText(finalUrl).then(() => {
+            alert("✅ 純網址已複製！文字留言已安全編碼。");
         });
     }
 
+    // --- 音樂與同步邏輯 (維持穩定) ---
     async function togglePreview() {
         const statusTag = document.getElementById('play-status');
         if (isPlaying) {
@@ -159,12 +163,14 @@
         const abcStr = abcArea.value;
         const regex = /(\^?[A-Ga-g][,']*[\d]*|z[\d]*)/g;
         let match, melodyData = [], totalTime = 0, tick = 0.125;
+        
         while ((match = regex.exec(abcStr)) !== null) {
             const token = match[0], dur = (token.match(/\d+/) || [1])[0];
             const pitch = token.startsWith('z') ? null : parseAbcToTone(token.replace(/\d+/g, ''));
             melodyData.push({ time: totalTime * tick, pitch: pitch, duration: (dur * tick * 0.9) + "s", startIndex: match.index, endIndex: match.index + token.length });
             totalTime += parseInt(dur);
         }
+
         melodyPart = new Tone.Part((time, n) => {
             if (sampler) {
                 if (n.pitch) sampler.triggerAttackRelease(n.pitch, n.duration, time);
@@ -178,7 +184,9 @@
                 }, time);
             }
         }, melodyData);
+
         melodyPart.loop = true; melodyPart.loopEnd = totalTime * tick; melodyPart.start(0);
+
         if(isFinalView) {
             const msg = document.getElementById('userMsg').value;
             const el = document.getElementById('typing-text');
@@ -188,26 +196,23 @@
         Tone.Transport.start();
     }
 
-    function stopAll() { 
-        Tone.Transport.stop(); Tone.Transport.cancel(); 
-        if (typingInterval) clearInterval(typingInterval); 
-        if (melodyPart) { melodyPart.dispose(); melodyPart = null; } 
-    }
-
+    function stopAll() { Tone.Transport.stop(); Tone.Transport.cancel(); if (typingInterval) clearInterval(typingInterval); if (melodyPart) melodyPart.dispose(); }
+    
     function parseAbcToTone(abcNote) {
         let sharp = abcNote.includes('^') ? '#' : '', note = abcNote.match(/[A-Ga-g]/)[0], oct = (note === note.toLowerCase()) ? 5 : 4;
         oct = oct - (abcNote.match(/,/g) || []).length + (abcNote.match(/'/g) || []).length;
         return note.toUpperCase() + sharp + oct;
     }
 
-    function generatePureUrl() {
-        const abc = document.getElementById('userAbc').value;
-        const msg = document.getElementById('userMsg').value.replace(/[!?#]/g, "");
-        const compressedAbc = LZString.compressToEncodedURIComponent(abc);
-        const newParams = new URLSearchParams();
-        newParams.set('t', msg); newParams.set('v', '2'); newParams.set('abc', compressedAbc);
-        const finalUrl = window.location.origin + window.location.pathname + '?' + newParams.toString();
-        navigator.clipboard.writeText(finalUrl).then(() => alert("✅ 純網址連結已複製！"));
+    function injectPiano(targetId) {
+        const p = document.getElementById(targetId); p.innerHTML = "";
+        const notes = ["C4","C#4","D4","D#4","E4","F4","F#4","G4","G#4","A4","A#4","B4","C5","C#5","D5","D#5","E5","F5","F#5","G5","G#5","A5","A#5","B5"];
+        notes.forEach(n => {
+            const div = document.createElement('div');
+            div.className = `key ${n.includes('#') ? 'black' : ''}`;
+            div.id = `key-${n.replace('#', 's')}`;
+            p.appendChild(div);
+        });
     }
 
     async function handleMidiUpload() {
