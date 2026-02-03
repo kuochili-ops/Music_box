@@ -23,6 +23,7 @@
 
         #card-right-inner { position: absolute; width: 100%; height: 100%; top: 0; left: 0; background: white; border-radius: 0 15px 15px 0; display: flex; flex-direction: column; align-items: center; padding: 30px 20px; box-sizing: border-box; z-index: 1; }
 
+        /* 鋼琴容器：僅在卡片打開後顯示 */
         #piano-inner-container { display: flex; width: 100%; height: 75px; background: #333; border-radius: 5px; margin-bottom: 25px; padding: 2px; opacity: 0; transition: opacity 0.5s; }
         #card-container.is-open #piano-inner-container { opacity: 1; }
         .key { flex: 1; border: 1px solid #ddd; background: white; border-radius: 0 0 3px 3px; position: relative; }
@@ -31,8 +32,9 @@
 
         #typing-text { font-size: 1.3rem; font-weight: 700; color: #2d3436; text-align: center; width: 100%; line-height: 1.6; min-height: 5em; }
 
+        /* 編輯器 UI */
         .editor-box { background: white; padding: 25px; border-radius: 20px; box-shadow: 0 10px 30px rgba(0,0,0,0.1); width: 90%; max-width: 400px; margin: 20px; }
-        textarea { width: 100%; height: 80px; background: #2d3436; color: #74b9ff; font-family: monospace; padding: 10px; border-radius: 8px; border: none; font-size: 12px; margin-top: 5px; }
+        textarea { width: 100%; height: 100px; background: #2d3436; color: #74b9ff; font-family: monospace; padding: 12px; border-radius: 10px; border: none; font-size: 13px; margin-top: 5px; }
         .btn-group { display: flex; gap: 8px; margin-top: 15px; }
         button { flex: 1; padding: 12px; border-radius: 10px; border: none; font-weight: bold; cursor: pointer; }
         .btn-main { background: var(--primary); color: white; }
@@ -48,7 +50,7 @@
         <p>點擊翻開卡片</p>
     </div>
     <div id="card-left-inner">
-        <img id="card-photo" src="IMG_5998.jpeg" alt="Memories">
+        <img id="display-img" src="IMG_5998.jpeg" alt="Memories">
     </div>
     <div id="card-right-inner">
         <div id="piano-inner-container"></div>
@@ -62,23 +64,22 @@
 </div>
 
 <div id="editor-ui" class="editor-box">
-    <h2 style="margin:0 0 20px 0; color:var(--primary); text-align:center;">🎹 音樂賀卡 App</h2>
-    <p style="font-size: 12px; color: #666; text-align: center;">已偵測到 GitHub 資源：IMG_5998.jpeg</p>
-    
+    <h2 style="margin:0 0 20px 0; color:var(--primary); text-align:center;">🎹 音樂賀卡製作</h2>
     <div style="background:#f9f9f9; padding:15px; border-radius:12px; margin-bottom:15px;">
         <label style="font-weight:bold; font-size:14px;">1. 匯入音樂 (MIDI)</label>
         <input type="file" id="midiInput" accept=".mid,.midi" onchange="handleMidiUpload()" style="width:100%; margin-top:10px;">
         <div id="midi-tool" class="hidden">
             <select id="midiTracks" style="width:100%; margin:10px 0; padding:10px; border-radius:8px; border:1px solid #ddd;"></select>
-            <button class="btn-main" onclick="convertToAbc()">⚡ 轉換代碼</button>
+            <button class="btn-main" onclick="convertToAbc()">⚡ 轉換為樂譜</button>
         </div>
     </div>
     <div style="background:#f9f9f9; padding:15px; border-radius:12px;">
-        <label style="font-weight:bold; font-size:14px;">2. 設定留言</label>
+        <label style="font-weight:bold; font-size:14px;">2. 留言與預聽</label>
         <input type="text" id="userMsg" value="這張照片、這首歌，獻給特別的你。" style="width:100%; margin:10px 0; padding:12px; box-sizing:border-box; border:1px solid #ddd; border-radius:10px;">
         <textarea id="userAbc" spellcheck="false" placeholder="樂譜代碼..."></textarea>
         <div class="btn-group">
-            <button onclick="previewInEditor()" style="background:#00b894; color:white;">▶️ 完整預覽</button>
+            <button onclick="playPreview()" style="background:#00b894; color:white;">▶️ 預聽音樂</button>
+            <button onclick="previewCard()" style="background:#0984e3; color:white;">👀 模擬開卡</button>
         </div>
     </div>
     <button onclick="generateShareLink()" style="width:100%; background:var(--primary); color:white; padding:15px; border-radius:12px; font-size:1.1rem; margin-top:20px;">📲 生成分享連結</button>
@@ -114,8 +115,7 @@
             let abc = params.get('abc');
             if (params.get('v') === '2') abc = LZString.decompressFromEncodedURIComponent(abc);
             document.getElementById('userAbc').value = abc;
-            const msg = params.get('t') ? decodeURIComponent(params.get('t')) : "專屬驚喜";
-            document.getElementById('userMsg').value = msg;
+            document.getElementById('userMsg').value = params.get('t') ? decodeURIComponent(params.get('t')) : "專屬驚喜";
         }
     };
 
@@ -125,13 +125,25 @@
         injectPiano();
         container.classList.add('is-open');
         await Tone.start();
-        setTimeout(() => playExperience(), 800);
+        setTimeout(() => playExperience(true), 800);
     }
 
-    async function playExperience() {
+    // 區分「預聽」與「完整體驗」
+    async function playPreview() {
+        await Tone.start();
+        playExperience(false); // 不渲染鋼琴動畫
+    }
+
+    function previewCard() {
+        document.getElementById('card-container').classList.remove('hidden');
+        openGreetingCard();
+    }
+
+    async function playExperience(showPiano = true) {
         stopAll();
         const abc = document.getElementById('userAbc').value;
-        const msg = document.getElementById('userMsg').value;
+        if (!abc) return;
+
         currentSynth = new Tone.Sampler({
             urls: { C4: "https://tonejs.github.io/audio/salamander/C4.mp3" },
             release: 1
@@ -149,38 +161,26 @@
         melodyPart = new Tone.Part((time, n) => {
             if (n.pitch) {
                 currentSynth.triggerAttackRelease(n.pitch, n.duration, time);
-                Tone.Draw.schedule(() => {
-                    const keyEl = document.getElementById(`key-${n.pitch.replace('#', 's')}`);
-                    if (keyEl) {
-                        keyEl.classList.add('active');
-                        setTimeout(() => keyEl.classList.remove('active'), 200);
-                    }
-                }, time);
+                if (showPiano) {
+                    Tone.Draw.schedule(() => {
+                        const keyEl = document.getElementById(`key-${n.pitch.replace('#', 's')}`);
+                        if (keyEl) {
+                            keyEl.classList.add('active');
+                            setTimeout(() => keyEl.classList.remove('active'), 200);
+                        }
+                    }, time);
+                }
             }
         }, melodyData);
         melodyPart.loop = true; melodyPart.loopEnd = totalTime * tick;
         melodyPart.start(0);
-
-        const el = document.getElementById('typing-text');
-        el.innerText = "";
-        let i = 0;
-        typingInterval = setInterval(() => {
-            if (i < msg.length) { el.innerText += msg[i]; i++; }
-            else clearInterval(typingInterval);
-        }, 150);
         Tone.Transport.start();
     }
 
     function stopAll() {
         Tone.Transport.stop(); Tone.Transport.cancel();
-        if (typingInterval) clearInterval(typingInterval);
         if (melodyPart) melodyPart.dispose();
         if (currentSynth) currentSynth.dispose();
-    }
-
-    function previewInEditor() {
-        document.getElementById('card-container').classList.remove('hidden');
-        openGreetingCard();
     }
 
     function parseAbcToTone(abcNote) {
@@ -224,7 +224,7 @@
         const url = `${window.location.origin}${window.location.pathname}?t=${encodeURIComponent(msg)}&v=2&abc=${compressed}`;
         const qr = document.getElementById('qrcode-container');
         qr.innerHTML = ""; new QRCode(qr, { text: url, width: 80, height: 80 });
-        alert("分享網址已生成！請使用複製按鈕獲取。");
+        alert("分享網址已生成！請確保 IMG_5998.jpeg 一併部署在 GitHub Pages。");
     }
 
     function copyUrl() {
@@ -232,7 +232,7 @@
         const msg = document.getElementById('userMsg').value;
         const compressed = LZString.compressToEncodedURIComponent(abc);
         const url = `${window.location.origin}${window.location.pathname}?t=${encodeURIComponent(msg)}&v=2&abc=${compressed}`;
-        navigator.clipboard.writeText(url).then(() => alert("連結已複製到剪貼簿！"));
+        navigator.clipboard.writeText(url).then(() => alert("連結已複製！"));
     }
 </script>
 </body>
