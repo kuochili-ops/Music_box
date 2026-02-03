@@ -56,8 +56,8 @@
         <div id="typing-text"></div>
         <div id="qrcode-container" style="margin-top:auto;"></div>
         <div class="btn-group" style="width: 100%; margin-top: 20px;">
-            <button onclick="copyUrl()" style="background:#f1f2f6; font-size: 11px;">📋 複製分享網址</button>
-            <button onclick="location.href=window.location.pathname" style="background:#fab1a0; color:white; font-size: 11px;">🔄 回製作頁</button>
+            <button onclick="copyUrl()" style="background:#f1f2f6; font-size: 11px;">📋 複製分享連結</button>
+            <button onclick="resetEditor()" style="background:#fab1a0; color:white; font-size: 11px;">🔄 返回製作</button>
         </div>
     </div>
 </div>
@@ -73,14 +73,14 @@
         </div>
     </div>
     <div style="background:#f9f9f9; padding:15px; border-radius:12px;">
-        <label style="font-weight:bold; font-size:14px;">2. 留言與預聽</label>
-        <input type="text" id="userMsg" value="這張照片、這首歌，獻給特別的你。" style="width:100%; margin:10px 0; padding:12px; box-sizing:border-box; border:1px solid #ddd; border-radius:10px;">
+        <label style="font-weight:bold; font-size:14px;">2. 設定內容</label>
+        <input type="text" id="userMsg" value="祝你今天有個旋律般的好心情！" style="width:100%; margin:10px 0; padding:12px; box-sizing:border-box; border:1px solid #ddd; border-radius:10px;">
         <textarea id="userAbc" spellcheck="false" placeholder="樂譜代碼..."></textarea>
         <div class="btn-group">
             <button id="previewBtn" onclick="togglePreview()" style="background:#00b894; color:white;">▶️ 預聽音樂</button>
         </div>
     </div>
-    <button onclick="generateShareLink()" style="width:100%; background:var(--primary); color:white; padding:15px; border-radius:12px; font-size:1.1rem; margin-top:20px;">📲 生成分享連結</button>
+    <button onclick="generateShareLink()" style="width:100%; background:var(--primary); color:white; padding:15px; border-radius:12px; font-size:1.1rem; margin-top:20px;">📲 生成分享網址</button>
 </div>
 
 <script>
@@ -107,6 +107,7 @@
         });
     }
 
+    // 頁面初始化：檢查網址是否有資料
     window.onload = () => {
         if (params.has('abc')) {
             document.getElementById('editor-ui').classList.add('hidden');
@@ -127,7 +128,6 @@
         setTimeout(() => playExperience(true), 800);
     }
 
-    // 切換預聽播放狀態
     async function togglePreview() {
         const btn = document.getElementById('previewBtn');
         if (isPlaying) {
@@ -137,7 +137,7 @@
             isPlaying = false;
         } else {
             await Tone.start();
-            playExperience(false); // 預聽模式，不顯示鋼琴動畫
+            playExperience(false);
             btn.innerText = "🛑 停止預聽";
             btn.classList.add('btn-stop');
             isPlaying = true;
@@ -179,13 +179,30 @@
         }, melodyData);
         melodyPart.loop = true; melodyPart.loopEnd = totalTime * tick;
         melodyPart.start(0);
+
+        if(showPiano) {
+            const msg = document.getElementById('userMsg').value;
+            const el = document.getElementById('typing-text');
+            el.innerText = "";
+            let i = 0;
+            typingInterval = setInterval(() => {
+                if (i < msg.length) { el.innerText += msg[i]; i++; }
+                else clearInterval(typingInterval);
+            }, 150);
+        }
+
         Tone.Transport.start();
     }
 
     function stopAll() {
         Tone.Transport.stop(); Tone.Transport.cancel();
+        if (typingInterval) clearInterval(typingInterval);
         if (melodyPart) melodyPart.dispose();
         if (currentSynth) currentSynth.dispose();
+    }
+
+    function resetEditor() {
+        location.href = window.location.origin + window.location.pathname;
     }
 
     function parseAbcToTone(abcNote) {
@@ -222,22 +239,27 @@
         document.getElementById('userAbc').value = abc.trim();
     }
 
+    // --- 關鍵修復：生成真正的 URL ---
     function generateShareLink() {
         const abc = document.getElementById('userAbc').value;
         const msg = document.getElementById('userMsg').value;
         const compressed = LZString.compressToEncodedURIComponent(abc);
-        const url = `${window.location.origin}${window.location.pathname}?t=${encodeURIComponent(msg)}&v=2&abc=${compressed}`;
+        
+        // 取得目前的基礎網址 (處理 GitHub Pages 環境)
+        const baseUrl = window.location.protocol + "//" + window.location.host + window.location.pathname;
+        const fullUrl = `${baseUrl}?t=${encodeURIComponent(msg)}&v=2&abc=${compressed}`;
+        
         const qr = document.getElementById('qrcode-container');
-        qr.innerHTML = ""; new QRCode(qr, { text: url, width: 80, height: 80 });
-        alert("分享網址已生成！");
+        qr.innerHTML = ""; 
+        new QRCode(qr, { text: fullUrl, width: 100, height: 100 });
+        
+        alert("分享連結已生成！請使用下方的「複製分享連結」按鈕。");
+        window.currentFullUrl = fullUrl; // 暫存起來供複製使用
     }
 
     function copyUrl() {
-        const abc = document.getElementById('userAbc').value;
-        const msg = document.getElementById('userMsg').value;
-        const compressed = LZString.compressToEncodedURIComponent(abc);
-        const url = `${window.location.origin}${window.location.pathname}?t=${encodeURIComponent(msg)}&v=2&abc=${compressed}`;
-        navigator.clipboard.writeText(url).then(() => alert("連結已複製！"));
+        const url = window.currentFullUrl || location.href;
+        navigator.clipboard.writeText(url).then(() => alert("連結已成功複製到剪貼簿！"));
     }
 </script>
 </body>
