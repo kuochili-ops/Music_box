@@ -12,29 +12,45 @@
         :root { --primary: #6c5ce7; --bg: #f1f2f6; }
         body { font-family: -apple-system, sans-serif; background: var(--bg); margin: 0; display: flex; flex-direction: column; justify-content: center; align-items: center; min-height: 100vh; perspective: 2000px; overflow: hidden; }
         
-        /* 修正：置中容器 */
-        #card-container { width: 350px; height: 500px; position: relative; transform-style: preserve-3d; transition: transform 1.2s ease-in-out; cursor: pointer; }
-        #card-container.is-open { transform: rotateY(0deg) translateX(175px); } /* 讓打開後的中心在視覺中間 */
+        /* 容器位移修正 */
+        #card-container { width: 350px; height: 500px; position: relative; transform-style: preserve-3d; transition: transform 1.2s cubic-bezier(0.4, 0, 0.2, 1); cursor: pointer; }
+        #card-container.is-open { transform: translateX(175px); }
 
-        /* 封面 */
-        #card-cover { position: absolute; width: 100%; height: 100%; top: 0; left: 0; background: var(--primary); color: white; border-radius: 0 15px 15px 0; display: flex; flex-direction: column; justify-content: center; align-items: center; z-index: 100; transform-origin: left; transition: transform 1.2s; backface-visibility: hidden; box-shadow: 10px 0 20px rgba(0,0,0,0.1); }
-        #card-container.is-open #card-cover { transform: rotateY(-180deg); }
-        
-        /* 圖片頁（左內頁）- 關鍵修正：確保 z-index 與 backface 正確 */
-        #card-left-inner { 
-            position: absolute; width: 100%; height: 100%; top: 0; left: 0; 
-            background-color: #fff; background-size: cover; background-position: center;
-            border-radius: 15px 0 0 15px; 
-            transform: rotateY(-180deg); /* 初始化就在封面背後 */
-            transform-origin: left; 
-            z-index: 90; /* 略低於封面，但高於右頁 */
-            backface-visibility: visible; 
-            border-right: 1px solid #ddd;
-            display: flex; justify-content: center; align-items: center;
+        /* 翻轉部件：包含封面與左內頁 */
+        #card-flap {
+            position: absolute; width: 100%; height: 100%; top: 0; left: 0;
+            transform-style: preserve-3d; transform-origin: left;
+            transition: transform 1.2s cubic-bezier(0.4, 0, 0.2, 1);
+            z-index: 100;
+        }
+        #card-container.is-open #card-flap { transform: rotateY(-180deg); }
+
+        /* 封面：正面 */
+        #card-cover {
+            position: absolute; width: 100%; height: 100%;
+            background: var(--primary); color: white; border-radius: 0 15px 15px 0;
+            display: flex; flex-direction: column; justify-content: center; align-items: center;
+            backface-visibility: hidden; box-shadow: 10px 0 20px rgba(0,0,0,0.1);
         }
 
-        /* 右內頁 */
-        #card-right-inner { position: absolute; width: 100%; height: 100%; top: 0; left: 0; background: white; border-radius: 0 15px 15px 0; display: flex; flex-direction: column; align-items: center; padding: 25px 20px; box-sizing: border-box; z-index: 10; border-left: 1px solid #eee; }
+        /* 左內頁：封面的背面 */
+        #card-left-inner { 
+            position: absolute; width: 100%; height: 100%;
+            background-color: #fff; background-size: cover; background-position: center;
+            border-radius: 15px 0 0 15px;
+            transform: rotateY(180deg); /* 背對封面 */
+            backface-visibility: hidden;
+            display: flex; justify-content: center; align-items: center;
+            border-right: 1px solid #ddd;
+        }
+
+        /* 右內頁：固定在底部的底版 */
+        #card-right-inner { 
+            position: absolute; width: 100%; height: 100%; top: 0; left: 0;
+            background: white; border-radius: 0 15px 15px 0;
+            display: flex; flex-direction: column; align-items: center; padding: 25px 20px; box-sizing: border-box;
+            z-index: 10;
+        }
         
         #piano-inner-container { display: flex; width: 100%; height: 70px; background: #333; border-radius: 8px; margin-bottom: 20px; padding: 3px; opacity: 0; transition: opacity 0.5s; }
         #card-container.is-open #piano-inner-container { opacity: 1; }
@@ -47,7 +63,6 @@
         input[type="text"] { width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 10px; margin-bottom: 10px; box-sizing: border-box; }
         button { width: 100%; padding: 12px; border-radius: 10px; border: none; font-weight: bold; cursor: pointer; background: var(--primary); color: white; margin-top: 8px; }
         #typing-text { font-size: 1.1rem; font-weight: 700; color: #2d3436; text-align: center; min-height: 4em; white-space: pre-wrap; margin-top: 10px;}
-        #qrcode-container { margin-top: auto; }
         .hidden { display: none !important; }
     </style>
 </head>
@@ -67,18 +82,18 @@
 </div>
 
 <div id="card-container" class="hidden" onclick="unlockAudioAndOpen()">
-    <div id="card-cover">
-        <div style="font-size: 60px;">🎁</div>
-        <h2>專屬驚喜</h2>
-        <p>點擊翻開</p>
-    </div>
-    <div id="card-left-inner">
-        <div id="no-img-msg" style="display:none; color:#999; font-size:12px;">PHOTO MISSING</div>
+    <div id="card-flap">
+        <div id="card-cover">
+            <div style="font-size: 60px;">🎁</div>
+            <h2>專屬驚喜</h2>
+            <p>點擊翻開</p>
+        </div>
+        <div id="card-left-inner"></div>
     </div>
     <div id="card-right-inner">
         <div id="piano-inner-container"></div>
         <div id="typing-text"></div>
-        <div id="qrcode-container"></div>
+        <div id="qrcode-container" style="margin-top:auto;"></div>
     </div>
 </div>
 
@@ -139,11 +154,10 @@
     window.onload = () => {
         const urlParams = new URLSearchParams(window.location.search);
         
-        // 修正圖片路徑機制
+        // 加載圖片
         const leftPage = document.getElementById('card-left-inner');
         const img = new Image();
         img.onload = () => { leftPage.style.backgroundImage = `url('${img.src}')`; };
-        img.onerror = () => { document.getElementById('no-img-msg').style.display = 'block'; };
         img.src = "wusachi.png"; 
 
         if (urlParams.has('abc')) {
@@ -190,9 +204,10 @@
 
     async function handleMidiUpload() {
         const file = document.getElementById('midiInput').files[0];
+        if (!file) return;
         window.currentMidi = new Midi(await file.arrayBuffer());
         const select = document.getElementById('midiTracks'); select.innerHTML = "";
-        window.currentMidi.tracks.forEach((t, i) => { if(t.notes.length > 0) select.add(new Option(`軌道 ${i+1}`, i)); });
+        window.currentMidi.tracks.forEach((t, i) => { if(t.notes.length > 0) select.add(new Option(`軌道 ${i+1} (${t.notes.length}音符)`, i)); });
         document.getElementById('midi-tool').classList.remove('hidden');
     }
 
