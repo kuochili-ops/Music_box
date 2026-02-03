@@ -15,40 +15,45 @@
         #card-container { width: 350px; height: 500px; position: relative; transform-style: preserve-3d; transition: transform 1.2s cubic-bezier(0.4, 0, 0.2, 1); cursor: pointer; }
         #card-container.is-open { transform: translateX(50%); }
 
-        #card-cover { position: absolute; width: 100%; height: 100%; top: 0; left: 0; background: var(--primary); color: white; border-radius: 0 15px 15px 0; display: flex; flex-direction: column; justify-content: center; align-items: center; z-index: 20; transform-origin: left; transition: transform 1.2s; backface-visibility: hidden; box-shadow: 10px 0 20px rgba(0,0,0,0.1); }
+        #card-cover { position: absolute; width: 100%; height: 100%; top: 0; left: 0; background: var(--primary); color: white; border-radius: 0 15px 15px 0; display: flex; flex-direction: column; justify-content: center; align-items: center; z-index: 30; transform-origin: left; transition: transform 1.2s; backface-visibility: hidden; box-shadow: 10px 0 20px rgba(0,0,0,0.1); }
         #card-container.is-open #card-cover { transform: rotateY(-180deg); }
 
-        /* 修正：左側內頁圖片顯示 */
-        #card-left-inner { position: absolute; width: 100%; height: 100%; top: 0; left: 0; background: #fff; border-radius: 15px 0 0 15px; transform: rotateY(180deg); transform-origin: left; z-index: 10; display: flex; justify-content: center; align-items: center; backface-visibility: hidden; border-right: 1px solid #eee; overflow: hidden; }
-        #card-left-inner img { width: 100%; height: 100%; object-fit: cover; display: block; }
+        /* 左側照片頁：確保 z-index 足夠高 */
+        #card-left-inner { position: absolute; width: 100%; height: 100%; top: 0; left: 0; background: #fff; border-radius: 15px 0 0 15px; transform: rotateY(180deg); transform-origin: left; z-index: 20; display: flex; justify-content: center; align-items: center; backface-visibility: hidden; border-right: 1px solid #eee; overflow: hidden; }
+        #card-left-inner img { width: 100%; height: 100%; object-fit: cover; pointer-events: none; }
 
-        #card-right-inner { position: absolute; width: 100%; height: 100%; top: 0; left: 0; background: white; border-radius: 0 15px 15px 0; display: flex; flex-direction: column; align-items: center; padding: 25px 20px; box-sizing: border-box; z-index: 5; }
+        #card-right-inner { position: absolute; width: 100%; height: 100%; top: 0; left: 0; background: white; border-radius: 0 15px 15px 0; display: flex; flex-direction: column; align-items: center; padding: 25px 20px; box-sizing: border-box; z-index: 10; }
 
-        #piano-inner-container { display: flex; width: 100%; height: 75px; background: #333; border-radius: 8px; margin-bottom: 20px; padding: 3px; opacity: 0; }
+        #piano-inner-container { display: flex; width: 100%; height: 75px; background: #333; border-radius: 8px; margin-bottom: 20px; padding: 3px; opacity: 0; transition: opacity 0.5s; }
         #card-container.is-open #piano-inner-container { opacity: 1; }
         .key { flex: 1; border: 1px solid #ddd; background: white; border-radius: 0 0 4px 4px; }
-        .key.black { background: #000; height: 60%; margin-left: -4%; margin-right: -4%; z-index: 2; flex: 0.6; border: none; }
+        .key.black { background: #000; height: 60%; margin-left: -4%; margin-right: -4%; z-index: 15; flex: 0.6; border: none; }
         .key.active { background: #ff7675 !important; }
 
-        #typing-text { font-size: 1.1rem; font-weight: 700; color: #2d3436; line-height: 1.6; min-height: 5em; }
-        #qrcode-container { margin-top: auto; padding: 5px; background: white; border: 1px solid #eee; }
+        #typing-text { font-size: 1.1rem; font-weight: 700; color: #2d3436; line-height: 1.6; min-height: 5em; text-align: center; }
+        #qrcode-container { margin-top: auto; padding: 5px; background: white; border: 1px solid #eee; cursor: pointer; }
 
-        .editor-box { background: white; padding: 20px; border-radius: 20px; box-shadow: 0 10px 30px rgba(0,0,0,0.1); width: 90%; max-width: 400px; margin: 20px; }
+        .editor-box { background: white; padding: 20px; border-radius: 20px; box-shadow: 0 10px 30px rgba(0,0,0,0.1); width: 90%; max-width: 400px; margin: 20px; z-index: 100; }
         input, textarea { width: 100%; padding: 10px; box-sizing: border-box; border: 1px solid #ddd; border-radius: 10px; margin: 5px 0 10px 0; }
-        button { width: 100%; padding: 12px; border-radius: 10px; border: none; font-weight: bold; cursor: pointer; background: var(--primary); color: white; }
+        button { width: 100%; padding: 12px; border-radius: 10px; border: none; font-weight: bold; cursor: pointer; background: var(--primary); color: white; margin-top: 10px; }
         .hidden { display: none !important; }
     </style>
 </head>
 <body>
 
 <div id="editor-ui" class="editor-box">
-    <h3 style="text-align:center; color:var(--primary);">🎹 賀卡製作</h3>
+    <h3 style="text-align:center; color:var(--primary); margin-top:0;">🎹 賀卡製作工作台</h3>
     <input type="file" id="midiInput" accept=".mid,.midi" onchange="handleMidiUpload()">
-    <div id="midi-tool" class="hidden"><select id="midiTracks"></select><button onclick="convertToAbc()">⚡ 轉換樂譜</button></div>
-    <input type="text" id="userMsg" value="祝你今天有個旋律般的好心情！">
-    <textarea id="userAbc" style="height:60px; background:#2d3436; color:#74b9ff;" spellcheck="false"></textarea>
+    <div id="midi-tool" class="hidden">
+        <select id="midiTracks" style="width:100%; padding:8px; margin-bottom:10px; border-radius:10px;"></select>
+        <button onclick="convertToAbc()" style="background:#0984e3;">⚡ 轉換樂譜</button>
+    </div>
+    <label style="font-size:12px;">祝福語：</label>
+    <input type="text" id="userMsg" value="祝你今天有個旋律般的好心情">
+    <label style="font-size:12px;">樂譜數據 (ABC)：</label>
+    <textarea id="userAbc" style="height:60px; background:#2d3436; color:#74b9ff; font-family: monospace;" spellcheck="false"></textarea>
     <button onclick="togglePreview()" style="background:#00b894;">▶️ 播放試聽</button>
-    <button onclick="generateShareLink()" style="margin-top:10px;">📲 生成分享文字</button>
+    <button onclick="generateShareLink()">📲 生成安全連結</button>
 </div>
 
 <div id="card-container" class="hidden" onclick="openGreetingCard()">
@@ -58,7 +63,7 @@
         <p>點擊翻開</p>
     </div>
     <div id="card-left-inner">
-        <img id="main-photo" src="IMG_5998.jpeg" onerror="this.src='https://via.placeholder.com/350x500?text=Photo+Not+Found'">
+        <img src="./IMG_5998.jpeg" onerror="console.log('圖片載入失敗，請確認檔案名稱是否正確')">
     </div>
     <div id="card-right-inner">
         <div id="piano-inner-container"></div>
@@ -70,24 +75,41 @@
 
 <script>
     let isPlaying = false, typingInterval = null, melodyPart = null, sampler = null;
-    const params = new URLSearchParams(window.location.search);
 
     window.onload = () => {
-        if (params.has('abc')) {
+        const urlParams = new URLSearchParams(window.location.search);
+        if (urlParams.has('abc')) {
             document.getElementById('editor-ui').classList.add('hidden');
             document.getElementById('card-container').classList.remove('hidden');
-            let abc = params.get('abc');
-            if (params.get('v') === '2') abc = LZString.decompressFromEncodedURIComponent(abc);
-            document.getElementById('userAbc').value = abc;
-            document.getElementById('userMsg').value = params.get('t') ? decodeURIComponent(params.get('t')) : "專屬驚喜";
-            new QRCode(document.getElementById('qrcode-container'), { text: window.location.href, width: 80, height: 80 });
             
-            // 強制檢查一次圖片路徑
-            const imgEl = document.getElementById('main-photo');
-            console.log("正在加載圖片：", imgEl.src);
+            let abc = urlParams.get('abc');
+            if (urlParams.get('v') === '2') abc = LZString.decompressFromEncodedURIComponent(abc);
+            document.getElementById('userAbc').value = abc;
+            document.getElementById('userMsg').value = urlParams.get('t') ? decodeURIComponent(urlParams.get('t')) : "專屬驚喜";
+            
+            new QRCode(document.getElementById('qrcode-container'), { text: window.location.href, width: 80, height: 80 });
         }
     };
 
+    function generateShareLink() {
+        const abc = document.getElementById('userAbc').value;
+        const msg = document.getElementById('userMsg').value.replace(/[!?#]/g, ""); // 移除可能干擾網址的符號
+        const compressedAbc = LZString.compressToEncodedURIComponent(abc);
+        
+        // 使用 URLSearchParams 構建安全網址
+        const newParams = new URLSearchParams();
+        newParams.set('t', msg);
+        newParams.set('v', '2');
+        newParams.set('abc', compressedAbc);
+
+        const finalUrl = window.location.origin + window.location.pathname + '?' + newParams.toString();
+        
+        navigator.clipboard.writeText(`🎹 我為你製作了一份音樂賀卡，點擊連結開啟：\n\n${finalUrl}`).then(() => {
+            alert("✅ 連結已安全生成並複製！");
+        });
+    }
+
+    // --- 音樂核心邏輯 ---
     async function openGreetingCard() {
         const container = document.getElementById('card-container');
         if(container.classList.contains('is-open')) return;
@@ -98,7 +120,6 @@
         setTimeout(() => playExperience(true), 800);
     }
 
-    // --- 音樂核心邏輯 ---
     function injectPiano() {
         const p = document.getElementById('piano-inner-container');
         if (p.innerHTML !== "") return;
@@ -155,7 +176,7 @@
         window.currentMidi = new Midi(await file.arrayBuffer());
         const select = document.getElementById('midiTracks');
         select.innerHTML = "";
-        window.currentMidi.tracks.forEach((t, i) => { if(t.notes.length > 0) select.add(new Option(`軌道 ${i+1}`, i)); });
+        window.currentMidi.tracks.forEach((t, i) => { if(t.notes.length > 0) select.add(new Option(`軌道 ${i+1} (${t.notes.length}音符)`, i)); });
         document.getElementById('midi-tool').classList.remove('hidden');
     }
     function convertToAbc() {
@@ -175,14 +196,7 @@
         if (isPlaying) { stopAll(); isPlaying = false; }
         else { await Tone.start(); if (!sampler) sampler = new Tone.Sampler({ urls: { C4: "https://tonejs.github.io/audio/salamander/C4.mp3" }, release: 1 }).toDestination(); playExperience(false); isPlaying = true; }
     }
-    function generateShareLink() {
-        const abc = document.getElementById('userAbc').value;
-        const msg = document.getElementById('userMsg').value;
-        const compressed = LZString.compressToEncodedURIComponent(abc);
-        const finalUrl = `${window.location.origin}${window.location.pathname}?t=${encodeURIComponent(msg)}&v=2&abc=${compressed}`;
-        navigator.clipboard.writeText(`🎹 送你一張音樂賀卡：\n${finalUrl}`).then(() => alert("連結已複製！"));
-    }
-    function copyCurrentUrl() { navigator.clipboard.writeText(window.location.href).then(() => alert("網址已複製！")); }
+    function copyCurrentUrl() { navigator.clipboard.writeText(window.location.href).then(() => alert("連結已複製！")); }
 </script>
 </body>
 </html>
