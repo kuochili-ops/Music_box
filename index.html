@@ -18,12 +18,14 @@
         #card-cover { position: absolute; width: 100%; height: 100%; top: 0; left: 0; background: var(--primary); color: white; border-radius: 0 15px 15px 0; display: flex; flex-direction: column; justify-content: center; align-items: center; z-index: 100; transform-origin: left; transition: transform 1.2s; backface-visibility: hidden; box-shadow: 10px 0 20px rgba(0,0,0,0.1); }
         #card-container.is-open #card-cover { transform: rotateY(-180deg); }
         
+        /* 圖片頁：增加紅色框線與 DEBUG 文字 */
         #card-left-inner { 
             position: absolute; width: 100%; height: 100%; top: 0; left: 0; 
-            background: #eee; background-size: cover; background-position: center;
+            background: #ffffff; background-size: cover; background-position: center;
             border-radius: 15px 0 0 15px; transform: rotateY(180deg); transform-origin: left; 
-            z-index: 200; display: flex; justify-content: center; align-items: center;
-            backface-visibility: hidden; border-right: 1px solid #ddd; 
+            z-index: 500 !important; /* 強制置頂 */
+            display: flex; flex-direction: column; justify-content: center; align-items: center;
+            backface-visibility: hidden; border-right: 2px solid #6c5ce7; 
         }
 
         #card-right-inner { position: absolute; width: 100%; height: 100%; top: 0; left: 0; background: white; border-radius: 0 15px 15px 0; display: flex; flex-direction: column; align-items: center; padding: 25px 20px; box-sizing: border-box; z-index: 10; }
@@ -33,31 +35,30 @@
         .key.black { background: #000; height: 60%; margin-left: -4%; margin-right: -4%; z-index: 15; flex: 0.6; border: none; }
         .key.active { background: #ff7675 !important; }
 
-        .editor-box { background: white; padding: 20px; border-radius: 20px; box-shadow: 0 10px 30px rgba(0,0,0,0.1); width: 90%; max-width: 400px; margin: 20px; z-index: 300; }
-        #userAbc { width: 100%; height: 120px; padding: 10px; border: 1px solid #ddd; border-radius: 10px; background: #2d3436; color: #74b9ff; font-family: 'Courier New', monospace; font-size: 14px; margin: 5px 0; resize: none; line-height: 1.5; }
-        /* 讓選取的音符更明顯 */
+        .editor-box { background: white; padding: 20px; border-radius: 20px; box-shadow: 0 10px 30px rgba(0,0,0,0.1); width: 90%; max-width: 400px; margin: 20px; z-index: 800; }
+        #userAbc { width: 100%; height: 120px; padding: 10px; border: 1px solid #ddd; border-radius: 10px; background: #2d3436; color: #74b9ff; font-family: monospace; font-size: 14px; margin: 5px 0; resize: none; }
         #userAbc::selection { background: #ff7675; color: white; }
 
         input[type="text"] { width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 10px; margin-bottom: 10px; box-sizing: border-box; }
         button { width: 100%; padding: 12px; border-radius: 10px; border: none; font-weight: bold; cursor: pointer; background: var(--primary); color: white; margin-top: 8px; }
         #typing-text { font-size: 1.1rem; font-weight: 700; color: #2d3436; text-align: center; min-height: 5em; white-space: pre-wrap; margin-top: 10px;}
-        #qrcode-container { margin-top: auto; display: flex; justify-content: center; }
         .hidden { display: none !important; }
+        #debug-log { position: fixed; bottom: 0; left: 0; background: rgba(0,0,0,0.8); color: lime; font-size: 10px; padding: 5px; z-index: 9999; max-width: 100%; }
     </style>
 </head>
 <body>
 
+<div id="debug-log">Log: Waiting for action...</div>
+
 <div id="editor-ui" class="editor-box">
-    <h3 style="text-align:center; color:var(--primary); margin:0 0 15px 0;">🎹 賀卡製作 (同步版)</h3>
+    <h3 style="text-align:center; color:var(--primary); margin:0 0 10px 0;">🎹 賀卡製作系統</h3>
     <input type="file" id="midiInput" accept=".mid,.midi" onchange="handleMidiUpload()">
     <div id="midi-tool" class="hidden">
         <select id="midiTracks" style="width:100%; padding:8px; margin-bottom:10px; border-radius:10px;"></select>
         <button onclick="convertToAbc()" style="background:#0984e3;">⚡ 轉換樂譜</button>
     </div>
-    <label style="font-size:12px;">1. 祝福文字</label>
     <input type="text" id="userMsg" value="祝你今天有個旋律般的好心情">
-    <label style="font-size:12px;">2. 樂譜編輯 (試聽時將同步高亮)</label>
-    <textarea id="userAbc" spellcheck="false"></textarea>
+    <textarea id="userAbc" spellcheck="false" placeholder="ABC 樂譜區域"></textarea>
     <button onclick="togglePreview()" style="background:#00b894;">▶️ 播放 / 停止試聽</button>
     <button onclick="generatePureUrl()">🔗 複製分享連結</button>
 </div>
@@ -68,21 +69,26 @@
         <h2>專屬驚喜</h2>
         <p>點擊翻開</p>
     </div>
-    <div id="card-left-inner"><span id="img-status" style="color:#999; font-size:12px;">PHOTO LOADING...</span></div>
+    <div id="card-left-inner">
+        <div id="inner-debug-msg" style="color: red; font-weight: bold; text-align: center;">圖片載入中...</div>
+    </div>
     <div id="card-right-inner">
         <div id="piano-inner-container"></div>
         <div id="typing-text"></div>
-        <div id="qrcode-container"></div>
+        <div id="qrcode-container" style="margin-top:auto;"></div>
     </div>
 </div>
 
 <script>
+    function log(msg) { document.getElementById('debug-log').innerText = "Log: " + msg; console.log(msg); }
+
     const MusicModule = {
         isPlaying: false, sampler: null, part: null, typingInterval: null,
         async init() {
             if (this.sampler) return;
             await Tone.start();
             this.sampler = new Tone.Sampler({ urls: { C4: "https://tonejs.github.io/audio/salamander/C4.mp3" }, release: 1 }).toDestination();
+            log("Audio Initialized");
         },
         stop() {
             Tone.Transport.stop(); Tone.Transport.cancel();
@@ -90,54 +96,33 @@
             if (this.typingInterval) clearInterval(this.typingInterval);
             this.isPlaying = false;
         },
-        play(abcStr, isFinalView = false) {
+        play(abcStr, isFinal = false) {
             this.stop();
             const textarea = document.getElementById('userAbc');
             const regex = /(\^?[A-Ga-g][,']*[\d]*|z[\d]*)/g;
             let melodyData = [], totalTime = 0, tick = 0.125, match;
-
             while ((match = regex.exec(abcStr)) !== null) {
                 const token = match[0], dur = (token.match(/\d+/) || [1])[0];
                 const pitch = token.startsWith('z') ? null : this.parseAbc(token.replace(/\d+/g, ''));
-                melodyData.push({ 
-                    time: totalTime * tick, 
-                    pitch, 
-                    duration: (dur * tick * 0.9) + "s",
-                    startIdx: match.index,
-                    endIdx: match.index + token.length
-                });
+                melodyData.push({ time: totalTime * tick, pitch, duration: (dur * tick * 0.9) + "s", start: match.index, end: match.index + token.length });
                 totalTime += parseInt(dur);
             }
-
             this.part = new Tone.Part((time, n) => {
                 if (n.pitch && this.sampler) this.sampler.triggerAttackRelease(n.pitch, n.duration, time);
-                
                 Tone.Draw.schedule(() => {
-                    // 1. 鋼琴按鍵動畫
                     if (n.pitch) {
                         const el = document.getElementById(`key-${n.pitch.replace('#', 's')}`);
-                        if (el) { el.classList.add('active'); setTimeout(() => el.classList.remove('active'), 200); }
+                        if (el) { el.classList.add('active'); setTimeout(() => el.classList.remove('active'), 150); }
                     }
-                    // 2. 編輯框高亮與自動滾動 (僅在試聽模式)
-                    if (!isFinalView) {
-                        textarea.focus();
-                        textarea.setSelectionRange(n.startIdx, n.endIdx);
-                        // 自動滾動邏輯
-                        const lineHeight = 21; // 約略值
-                        const charsPerLine = 30; // 約略值
-                        const currentLine = Math.floor(n.startIdx / charsPerLine);
-                        textarea.scrollTop = currentLine * lineHeight - 40; 
+                    if (!isFinal) {
+                        textarea.focus(); textarea.setSelectionRange(n.start, n.end);
+                        textarea.scrollTop = (n.start / 30) * 20 - 40;
                     }
                 }, time);
             }, melodyData);
-
-            this.part.loop = true; 
-            this.part.loopEnd = totalTime * tick; 
-            this.part.start(0);
-            Tone.Transport.start(); 
-            this.isPlaying = true;
-
-            if (isFinalView) {
+            this.part.loop = true; this.part.loopEnd = totalTime * tick;
+            this.part.start(0); Tone.Transport.start(); this.isPlaying = true;
+            if (isFinal) {
                 const msg = document.getElementById('userMsg').value;
                 const el = document.getElementById('typing-text');
                 el.innerText = ""; let i = 0;
@@ -152,17 +137,23 @@
     };
 
     window.onload = () => {
+        log("Window Loaded. Checking URL...");
         const urlParams = new URLSearchParams(window.location.search);
-        const leftPage = document.getElementById('card-left-inner');
         
-        // 圖片預加載
-        const testImg = new Image();
-        testImg.onload = () => {
-            leftPage.style.backgroundImage = `url('${testImg.src}')`;
-            document.getElementById('img-status').style.display = 'none';
+        // 圖片載入偵錯邏輯
+        const leftPage = document.getElementById('card-left-inner');
+        const debugMsg = document.getElementById('inner-debug-msg');
+        const img = new Image();
+        img.onload = () => {
+            log("Image 'wusachi.png' loaded successfully!");
+            leftPage.style.backgroundImage = `url('${img.src}')`;
+            debugMsg.style.display = 'none';
         };
-        testImg.onerror = () => { document.getElementById('img-status').innerText = "⚠️ 圖片路徑錯誤"; };
-        testImg.src = "wusachi.png?v=" + Date.now();
+        img.onerror = () => {
+            log("FATAL: 'wusachi.png' could not be found!");
+            debugMsg.innerText = "❌ 找不到 wusachi.png\n請檢查檔名與位置";
+        };
+        img.src = "wusachi.png?v=" + Date.now();
 
         if (urlParams.has('abc')) {
             document.getElementById('editor-ui').classList.add('hidden');
@@ -170,9 +161,8 @@
             let abc = urlParams.get('abc');
             if (urlParams.get('v') === '2') abc = LZString.decompressFromEncodedURIComponent(abc);
             document.getElementById('userAbc').value = abc;
-            const t = urlParams.get('t');
-            document.getElementById('userMsg').value = t ? decodeURIComponent(t) : "專屬驚喜";
-            try { new QRCode(document.getElementById('qrcode-container'), { text: window.location.href, width: 70, height: 70, correctLevel: QRCode.CorrectLevel.L }); } catch(e){}
+            document.getElementById('userMsg').value = decodeURIComponent(urlParams.get('t') || "");
+            try { new QRCode(document.getElementById('qrcode-container'), { text: window.location.href, width: 70, height: 70, correctLevel: QRCode.CorrectLevel.L }); } catch(e) { log("QR fail"); }
         }
         injectPiano();
     };
@@ -182,6 +172,7 @@
         const container = document.getElementById('card-container');
         if (!container.classList.contains('is-open')) {
             container.classList.add('is-open');
+            log("Card Opening...");
             setTimeout(() => MusicModule.play(document.getElementById('userAbc').value, true), 800);
         }
     }
@@ -193,12 +184,13 @@
 
     function generatePureUrl() {
         const abc = document.getElementById('userAbc').value;
-        const msg = document.getElementById('userMsg').value;
         const compressedAbc = LZString.compressToEncodedURIComponent(abc);
         const params = new URLSearchParams();
-        params.set('t', msg); params.set('v', '2'); params.set('abc', compressedAbc);
+        params.set('t', document.getElementById('userMsg').value);
+        params.set('v', '2');
+        params.set('abc', compressedAbc);
         const url = `${window.location.origin}${window.location.pathname}?${params.toString()}`;
-        navigator.clipboard.writeText(url).then(() => alert("✅ 連結已複製！文字已編碼。"));
+        navigator.clipboard.writeText(url).then(() => { log("URL Copied"); alert("✅ 連結已複製！"); });
     }
 
     function injectPiano() {
