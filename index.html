@@ -14,12 +14,37 @@
         
         #card-container { width: 350px; height: 500px; position: relative; transform-style: preserve-3d; transition: transform 1.2s cubic-bezier(0.4, 0, 0.2, 1); cursor: pointer; }
         #card-container.is-open { transform: translateX(50%); }
-        #card-cover { position: absolute; width: 100%; height: 100%; top: 0; left: 0; background: var(--primary); color: white; border-radius: 0 15px 15px 0; display: flex; flex-direction: column; justify-content: center; align-items: center; z-index: 30; transform-origin: left; transition: transform 1.2s; backface-visibility: hidden; }
+
+        #card-cover { position: absolute; width: 100%; height: 100%; top: 0; left: 0; background: var(--primary); color: white; border-radius: 0 15px 15px 0; display: flex; flex-direction: column; justify-content: center; align-items: center; z-index: 50; transform-origin: left; transition: transform 1.2s; backface-visibility: hidden; box-shadow: 10px 0 20px rgba(0,0,0,0.1); }
         #card-container.is-open #card-cover { transform: rotateY(-180deg); }
         
-        /* 左側內頁：圖片顯示區域 */
-        #card-left-inner { position: absolute; width: 100%; height: 100%; top: 0; left: 0; background: #fff; border-radius: 15px 0 0 15px; transform: rotateY(180deg); transform-origin: left; z-index: 20; display: flex; justify-content: center; align-items: center; backface-visibility: hidden; border-right: 1px solid #eee; overflow: hidden; }
-        #card-left-inner img { width: 100%; height: 100%; object-fit: cover; }
+        /* 強化的左側內頁圖片 CSS */
+        #card-left-inner { 
+            position: absolute; 
+            width: 100%; 
+            height: 100%; 
+            top: 0; 
+            left: 0; 
+            background: #ffffff; 
+            border-radius: 15px 0 0 15px; 
+            transform: rotateY(180deg); 
+            transform-origin: left; 
+            z-index: 40; /* 提高層級 */
+            display: flex; 
+            justify-content: center; 
+            align-items: center; 
+            backface-visibility: hidden; 
+            border-right: 1px solid #eee; 
+            overflow: hidden; 
+        }
+        #card-left-inner img { 
+            width: 100.5%; /* 稍微溢出以消除白邊 */
+            height: 100.5%; 
+            object-fit: cover; 
+            display: block !important; 
+            opacity: 1 !important;
+            visibility: visible !important;
+        }
 
         #card-right-inner { position: absolute; width: 100%; height: 100%; top: 0; left: 0; background: white; border-radius: 0 15px 15px 0; display: flex; flex-direction: column; align-items: center; padding: 25px 20px; box-sizing: border-box; z-index: 10; }
         #piano-inner-container { display: flex; width: 100%; height: 75px; background: #333; border-radius: 8px; margin-bottom: 20px; padding: 3px; opacity: 0; transition: opacity 0.5s; }
@@ -53,7 +78,7 @@
     <label style="font-size:12px;">1. 祝福文字</label>
     <input type="text" id="userMsg" value="祝你今天有個旋律般的好心情" style="width:100%; padding:10px; border-radius:10px; border:1px solid #ddd; margin-bottom:10px;">
     <div class="playback-header">
-        <label style="font-size:12px;">2. 樂譜編輯 (播放時高亮音符)</label>
+        <label style="font-size:12px;">2. 樂譜編輯 (播放時標記音符)</label>
         <span id="play-status" class="status-tag">IDLE</span>
     </div>
     <textarea id="userAbc" spellcheck="false"></textarea>
@@ -68,7 +93,7 @@
         <p>點擊翻開</p>
     </div>
     <div id="card-left-inner">
-        <img id="main-photo" src="wusachi.png" alt="Card Image">
+        <img id="main-photo" src="wusachi.png" alt="Memories">
     </div>
     <div id="card-right-inner">
         <div id="piano-inner-container"></div>
@@ -82,6 +107,11 @@
 
     window.onload = () => {
         const urlParams = new URLSearchParams(window.location.search);
+        
+        // 強制刷新圖片 src 避免快取
+        const img = document.getElementById('main-photo');
+        img.src = "wusachi.png?v=" + new Date().getTime();
+
         if (urlParams.has('abc')) {
             document.getElementById('editor-ui').classList.add('hidden');
             document.getElementById('card-container').classList.remove('hidden');
@@ -90,14 +120,11 @@
             document.getElementById('userAbc').value = abc;
             document.getElementById('userMsg').value = urlParams.get('t') ? decodeURIComponent(urlParams.get('t')) : "專屬驚喜";
             new QRCode(document.getElementById('qrcode-container'), { text: window.location.href, width: 80, height: 80 });
-            
-            // 檢查圖片載入情況
-            const img = document.getElementById('main-photo');
-            img.onerror = () => console.error("圖片 wusachi.png 載入失敗，請確認檔案是否存在於根目錄，且檔名大小寫一致。");
         }
         injectPiano('piano-inner-container');
     };
 
+    // --- 保持原本運作良好的音樂與邏輯 ---
     function injectPiano(targetId) {
         const p = document.getElementById(targetId); p.innerHTML = "";
         const notes = ["C4","C#4","D4","D#4","E4","F4","F#4","G4","G#4","A4","A#4","B4","C5","C#5","D5","D#5","E5","F5","F#5","G5","G#5","A5","A#5","B5"];
@@ -116,7 +143,6 @@
             statusTag.innerText = "IDLE";
             statusTag.classList.remove('active');
             isPlaying = false;
-            document.getElementById('userAbc').setSelectionRange(0, 0);
         } else {
             await Tone.start();
             if (!sampler) sampler = new Tone.Sampler({ urls: { C4: "https://tonejs.github.io/audio/salamander/C4.mp3" }, release: 1 }).toDestination();
@@ -133,20 +159,12 @@
         const abcStr = abcArea.value;
         const regex = /(\^?[A-Ga-g][,']*[\d]*|z[\d]*)/g;
         let match, melodyData = [], totalTime = 0, tick = 0.125;
-        
         while ((match = regex.exec(abcStr)) !== null) {
             const token = match[0], dur = (token.match(/\d+/) || [1])[0];
             const pitch = token.startsWith('z') ? null : parseAbcToTone(token.replace(/\d+/g, ''));
-            melodyData.push({ 
-                time: totalTime * tick, 
-                pitch: pitch, 
-                duration: (dur * tick * 0.9) + "s",
-                startIndex: match.index,
-                endIndex: match.index + token.length
-            });
+            melodyData.push({ time: totalTime * tick, pitch: pitch, duration: (dur * tick * 0.9) + "s", startIndex: match.index, endIndex: match.index + token.length });
             totalTime += parseInt(dur);
         }
-
         melodyPart = new Tone.Part((time, n) => {
             if (sampler) {
                 if (n.pitch) sampler.triggerAttackRelease(n.pitch, n.duration, time);
@@ -155,19 +173,12 @@
                     abcArea.setSelectionRange(n.startIndex, n.endIndex);
                     if (n.pitch) {
                         const keyEl = document.getElementById(`key-${n.pitch.replace('#', 's')}`);
-                        if (keyEl) {
-                            keyEl.classList.add('active');
-                            setTimeout(() => keyEl.classList.remove('active'), 200);
-                        }
+                        if (keyEl) { keyEl.classList.add('active'); setTimeout(() => keyEl.classList.remove('active'), 200); }
                     }
                 }, time);
             }
         }, melodyData);
-
-        melodyPart.loop = true;
-        melodyPart.loopEnd = totalTime * tick;
-        melodyPart.start(0);
-
+        melodyPart.loop = true; melodyPart.loopEnd = totalTime * tick; melodyPart.start(0);
         if(isFinalView) {
             const msg = document.getElementById('userMsg').value;
             const el = document.getElementById('typing-text');
@@ -178,8 +189,7 @@
     }
 
     function stopAll() { 
-        Tone.Transport.stop(); 
-        Tone.Transport.cancel(); 
+        Tone.Transport.stop(); Tone.Transport.cancel(); 
         if (typingInterval) clearInterval(typingInterval); 
         if (melodyPart) { melodyPart.dispose(); melodyPart = null; } 
     }
