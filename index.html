@@ -8,25 +8,25 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/lz-string/1.4.4/lz-string.min.js"></script>
     <style>
-        :root { --primary: #6c5ce7; --bg: #f1f2f6; --soft-red: #ffe3e3; }
+        :root { --primary: #6c5ce7; --bg: #f1f2f6; --soft-red: #ffe3e3; --flip-duration: 2.2s; } /* 統一動畫時間 */
         
-        body { font-family: -apple-system, sans-serif; background: var(--bg); margin: 0; display: flex; flex-direction: column; justify-content: center; align-items: center; min-height: 100vh; perspective: 1500px; overflow: hidden; }
+        body { font-family: -apple-system, sans-serif; background: var(--bg); margin: 0; display: flex; flex-direction: column; justify-content: center; align-items: center; min-height: 100vh; perspective: 1800px; overflow: hidden; }
         
-        #card-container { width: 350px; height: 500px; position: relative; transform-style: preserve-3d; transition: transform 1.5s cubic-bezier(0.4, 0, 0.2, 1); cursor: pointer; }
+        #card-container { width: 350px; height: 500px; position: relative; transform-style: preserve-3d; transition: transform var(--flip-duration) cubic-bezier(0.4, 0, 0.2, 1); cursor: pointer; }
         #card-container.is-open { transform: translateX(175px); }
 
-        /* 封面層 [cite: 8] */
+        /* 封面層 */
         #card-flap { 
             position: absolute; width: 100%; height: 100%; top: 0; left: 0; 
             transform-style: preserve-3d; transform-origin: left; 
-            transition: transform 1.5s cubic-bezier(0.645, 0.045, 0.355, 1); 
+            transition: transform var(--flip-duration) cubic-bezier(0.45, 0.05, 0.55, 0.95); 
             z-index: 100; 
         }
         
         .hint-animation { animation: flap-hint 3s ease-in-out infinite; }
         @keyframes flap-hint {
             0%, 100% { transform: rotateY(0deg); }
-            50% { transform: rotateY(-15deg); } 
+            50% { transform: rotateY(-12deg); } 
         }
 
         #card-container.is-open #card-flap { transform: rotateY(-180deg); }
@@ -35,7 +35,7 @@
             position: absolute; width: 100%; height: 100%; 
             background-image: url('IMG_6823.jpeg'); background-size: cover; background-position: center;
             border-radius: 0 15px 15px 0; backface-visibility: hidden; 
-            box-shadow: 10px 0 20px rgba(0,0,0,0.2);
+            box-shadow: 10px 0 20px rgba(0,0,0,0.15);
         }
         
         #card-left-inner { 
@@ -45,19 +45,17 @@
             border-radius: 15px 0 0 15px; transform: rotateY(180deg); backface-visibility: hidden; 
         }
 
-        /* 右側內頁：遮罩改為從右向左展開 */
+        /* 右側內頁：遮罩由右向左 */
         #card-right-inner { 
             position: absolute; width: 100%; height: 100%; top: 0; left: 0; 
             background: white; border-radius: 0 15px 15px 0; 
             display: flex; flex-direction: column; align-items: center; 
             padding: 25px 20px; box-sizing: border-box; 
             z-index: 10;
-            /* 初始狀態：左邊界為 0，右邊界縮排至 0 (由右側切除內容) */
             clip-path: inset(0 0 0 100%); 
-            transition: clip-path 1.5s cubic-bezier(0.645, 0.045, 0.355, 1);
+            transition: clip-path var(--flip-duration) cubic-bezier(0.45, 0.05, 0.55, 0.95);
         }
         
-        /* 展開時：遮罩由左 100% 回歸到 0，形成由右向左展開的視覺 */
         #card-container.is-open #card-right-inner { clip-path: inset(0 0 0 0); }
         
         #piano-inner-container { display: flex; width: 100%; height: 70px; background: #333; border-radius: 8px; margin-bottom: 20px; padding: 3px; }
@@ -159,15 +157,20 @@
         
         if (!container.classList.contains('is-open')) {
             await MusicModule.init();
-            flap.classList.remove('hint-animation'); // 點觸後停止呼吸動畫 [cite: 35]
-            container.classList.add('is-open');      // 執行翻開動作 [cite: 61]
+            
+            // 1. 立即停止提示動畫
+            flap.classList.remove('hint-animation');
+            
+            // 2. 啟動翻轉與遮罩同步
+            container.classList.add('is-open');
 
+            // 3. 在翻到一半後再啟動音樂與打字，營造沉浸感
             setTimeout(() => {
                 const msg = document.getElementById('userMsg').value, el = document.getElementById('typing-text');
                 el.innerText = ""; let i = 0;
                 const timer = setInterval(() => { if (i < msg.length) { el.innerText += msg[i]; i++; } else clearInterval(timer); }, 150);
                 MusicModule.play(document.getElementById('userAbc').value);
-            }, 1500); 
+            }, 2000); 
         }
     }
 
