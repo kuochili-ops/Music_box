@@ -7,15 +7,17 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/tone/14.8.49/Tone.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/lz-string/1.4.4/lz-string.min.js"></script>
+    <script src="https://unpkg.com/@tonejs/midi"></script>
     <style>
-        :root { --primary: #6c5ce7; --bg: #f1f2f6; --soft-red: #ffe3e3; --flip-duration: 2.2s; } /* 統一動畫時間 */
+        :root { --primary: #6c5ce7; --bg: #f1f2f6; --soft-red: #ffe3e3; --flip-duration: 2.2s; } /* 定義統一的翻轉時長 */
         
         body { font-family: -apple-system, sans-serif; background: var(--bg); margin: 0; display: flex; flex-direction: column; justify-content: center; align-items: center; min-height: 100vh; perspective: 1800px; overflow: hidden; }
         
-        #card-container { width: 350px; height: 500px; position: relative; transform-style: preserve-3d; transition: transform var(--flip-duration) cubic-bezier(0.4, 0, 0.2, 1); cursor: pointer; }
+        /* 容器平移與封面翻轉同步 */
+        #card-container { width: 350px; height: 500px; position: relative; transform-style: preserve-3d; transition: transform var(--flip-duration) cubic-bezier(0.45, 0.05, 0.55, 0.95); cursor: pointer; }
         #card-container.is-open { transform: translateX(175px); }
 
-        /* 封面層 */
+        /* 封面層：緩慢旋轉 */
         #card-flap { 
             position: absolute; width: 100%; height: 100%; top: 0; left: 0; 
             transform-style: preserve-3d; transform-origin: left; 
@@ -23,6 +25,7 @@
             z-index: 100; 
         }
         
+        /* 點點觸後的呼吸動畫停止邏輯由 JS 控制 */
         .hint-animation { animation: flap-hint 3s ease-in-out infinite; }
         @keyframes flap-hint {
             0%, 100% { transform: rotateY(0deg); }
@@ -45,14 +48,14 @@
             border-radius: 15px 0 0 15px; transform: rotateY(180deg); backface-visibility: hidden; 
         }
 
-        /* 右側內頁：遮罩由右向左 */
+        /* 右側內頁：遮罩從右向左展開，並與翻轉時間同步 */
         #card-right-inner { 
             position: absolute; width: 100%; height: 100%; top: 0; left: 0; 
             background: white; border-radius: 0 15px 15px 0; 
             display: flex; flex-direction: column; align-items: center; 
             padding: 25px 20px; box-sizing: border-box; 
             z-index: 10;
-            clip-path: inset(0 0 0 100%); 
+            clip-path: inset(0 0 0 100%); /* 初始完全遮蔽（由左側切除） */
             transition: clip-path var(--flip-duration) cubic-bezier(0.45, 0.05, 0.55, 0.95);
         }
         
@@ -73,8 +76,13 @@
 <body>
 
 <div id="editor-ui" class="editor-box">
-    <h3 style="text-align:center; color:var(--primary); margin:0 0 10px 0;">製作賀卡內容</h3>
-    <input type="text" id="userMsg" value="祝你恭喜發財，好運連連！" style="width:100%; padding:10px; border:1px solid #ddd; border-radius:10px; margin-bottom:10px; box-sizing:border-box;">
+    <h3 style="text-align:center; color:var(--primary); margin:0 0 10px 0;">製作我的音樂賀卡</h3>
+    <input type="file" id="midiInput" accept=".mid,.midi" onchange="handleMidiUpload()">
+    <div id="midi-tool" class="hidden">
+        <select id="midiTracks" style="width:100%; padding:8px; margin-bottom:10px;"></select>
+        <button onclick="convertToAbc()" style="background:#0984e3;">⚡ 轉換樂譜</button>
+    </div>
+    <input type="text" id="userMsg" value="祝你恭喜發財，好運連連！">
     <textarea id="userAbc">z4 C2 D2 | E2 E2 D2 C2 | E6 G2 | A2 A2 G2 E2 | A6 A2 | c2 c2 A2 G2 | E2 G2 A2 G2 | E2 E2 D2 C2 | D6 C2 | E2 E2 D2 C2 | D6 C2 | E2 E2 D2 C2 | D6 G,2 | C2 C2 D2 D2 | E2 E2 G2 G2 | A2 G2 E2 D2 | C6 z2 |</textarea>
     <button id="playBtn" onclick="togglePreview()">▶️ 試聽 / 停止</button>
     <button onclick="generatePureUrl()">🔗 複製分享連結</button>
@@ -158,13 +166,13 @@
         if (!container.classList.contains('is-open')) {
             await MusicModule.init();
             
-            // 1. 立即停止提示動畫
+            // 1. 立即停止提示動畫，避免與翻轉動作衝突
             flap.classList.remove('hint-animation');
             
-            // 2. 啟動翻轉與遮罩同步
+            // 2. 啟動翻轉動作（位移 + 旋轉 + 遮罩揭開）
             container.classList.add('is-open');
 
-            // 3. 在翻到一半後再啟動音樂與打字，營造沉浸感
+            // 3. 在翻轉快結束時啟動音樂與打字效果
             setTimeout(() => {
                 const msg = document.getElementById('userMsg').value, el = document.getElementById('typing-text');
                 el.innerText = ""; let i = 0;
@@ -193,6 +201,29 @@
         const p = document.getElementById('piano-inner-container');
         const notes = ["C4","C#4","D4","D#4","E4","F4","F#4","G4","G#4","A4","A#4","B4","C5","C#5","D5","D#5","E5","F5","F#5","G5","G#5","A5","A#5","B5"];
         p.innerHTML = notes.map(n => `<div class="key ${n.includes('#') ? 'black' : ''}" id="key-${n.replace('#', 's')}"></div>`).join('');
+    }
+
+    async function handleMidiUpload() {
+        const file = document.getElementById('midiInput').files[0];
+        if (!file) return;
+        window.currentMidi = new Midi(await file.arrayBuffer());
+        const select = document.getElementById('midiTracks'); select.innerHTML = "";
+        window.currentMidi.tracks.forEach((t, i) => { if(t.notes.length > 0) select.add(new Option(`軌道 ${i+1} (${t.notes.length}音符)`, i)); });
+        document.getElementById('midi-tool').classList.remove('hidden');
+    }
+
+    function convertToAbc() {
+        const track = window.currentMidi.tracks[document.getElementById('midiTracks').value];
+        let abc = "", lastEnd = 0;
+        track.notes.forEach(note => {
+            const wait = note.time - lastEnd;
+            if (wait > 0.05) { let z = Math.round(wait * 8); if (z > 0) abc += "z" + (z > 1 ? z : "") + " "; }
+            let p = note.pitch.replace(/[0-9]/g, '').replace('#', '^'), oct = note.octave;
+            let fn = (oct === 4) ? p.toUpperCase() : (oct === 5) ? p.toLowerCase() : (oct < 4) ? p.toUpperCase() + ",".repeat(4-oct) : p.toLowerCase() + "'".repeat(oct-5);
+            abc += fn + (Math.round(note.duration * 8) > 1 ? Math.round(note.duration * 8) : "") + " ";
+            lastEnd = note.time + note.duration;
+        });
+        document.getElementById('userAbc').value = abc.trim();
     }
 </script>
 </body>
