@@ -7,7 +7,6 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/tone/14.8.49/Tone.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/lz-string/1.4.4/lz-string.min.js"></script>
-    <script src="https://unpkg.com/@tonejs/midi"></script>
     <style>
         :root { --primary: #6c5ce7; --bg: #f1f2f6; --soft-red: #ffe3e3; }
         body { font-family: -apple-system, sans-serif; background: var(--bg); margin: 0; display: flex; flex-direction: column; justify-content: center; align-items: center; min-height: 100vh; perspective: 2000px; overflow: hidden; }
@@ -18,20 +17,23 @@
         #card-flap { position: absolute; width: 100%; height: 100%; top: 0; left: 0; transform-style: preserve-3d; transform-origin: left; transition: transform 1.2s cubic-bezier(0.4, 0, 0.2, 1); z-index: 100; }
         #card-container.is-open #card-flap { transform: rotateY(-180deg); }
 
-        #card-cover { position: absolute; width: 100%; height: 100%; background: var(--primary); color: white; border-radius: 0 15px 15px 0; display: flex; flex-direction: column; justify-content: center; align-items: center; backface-visibility: hidden; box-shadow: 10px 0 20px rgba(0,0,0,0.1); }
+        /* 封面：使用 IMG_6823.jpeg */
+        #card-cover { 
+            position: absolute; width: 100%; height: 100%; 
+            background-image: url('IMG_6823.jpeg');
+            background-size: cover; background-position: center;
+            border-radius: 0 15px 15px 0; 
+            backface-visibility: hidden; 
+            box-shadow: 10px 0 20px rgba(0,0,0,0.1); 
+        }
         
-        /* 圖片頁優化：透明 PNG 搭配淡紅背景 */
+        /* 內左頁：郵票狗圖 */
         #card-left-inner { 
             position: absolute; width: 100%; height: 100%; 
             background-color: var(--soft-red); 
-            background-size: contain; 
-            background-repeat: no-repeat; 
-            background-position: center; 
-            border-radius: 15px 0 0 15px; 
-            transform: rotateY(180deg); 
-            backface-visibility: hidden; 
-            border: none;
-            outline: none;
+            background-image: url('white6.png');
+            background-size: contain; background-repeat: no-repeat; background-position: center; 
+            border-radius: 15px 0 0 15px; transform: rotateY(180deg); backface-visibility: hidden; 
         }
 
         #card-right-inner { position: absolute; width: 100%; height: 100%; top: 0; left: 0; background: white; border-radius: 0 15px 15px 0; display: flex; flex-direction: column; align-items: center; padding: 25px 20px; box-sizing: border-box; z-index: 10; border: none; }
@@ -43,10 +45,8 @@
         .key.active { background: #ff7675 !important; }
 
         .editor-box { background: white; padding: 20px; border-radius: 20px; box-shadow: 0 10px 30px rgba(0,0,0,0.1); width: 90%; max-width: 400px; margin: 20px; z-index: 500; }
-        #userAbc { width: 100%; height: 100px; padding: 10px; border: 1px solid #ddd; border-radius: 10px; background: #2d3436; color: #74b9ff; font-family: monospace; font-size: 14px; margin: 5px 0; resize: none; outline: none; }
-        #userAbc::selection { background: #6c5ce7; color: #fff; }
+        #userAbc { width: 100%; height: 120px; padding: 10px; border: 1px solid #ddd; border-radius: 10px; background: #2d3436; color: #74b9ff; font-family: monospace; font-size: 13px; margin: 5px 0; resize: none; outline: none; }
 
-        input[type="text"] { width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 10px; margin-bottom: 10px; box-sizing: border-box; }
         button { width: 100%; padding: 12px; border-radius: 10px; border: none; font-weight: bold; cursor: pointer; background: var(--primary); color: white; margin-top: 8px; }
         #typing-text { font-size: 1.1rem; font-weight: 700; color: #2d3436; text-align: center; min-height: 4em; white-space: pre-wrap; margin-top: 10px;}
         .hidden { display: none !important; }
@@ -55,25 +55,16 @@
 <body>
 
 <div id="editor-ui" class="editor-box">
-    <h3 style="text-align:center; color:var(--primary); margin:0 0 10px 0;">製作我的音樂賀卡</h3>
-    <input type="file" id="midiInput" accept=".mid,.midi" onchange="handleMidiUpload()">
-    <div id="midi-tool" class="hidden">
-        <select id="midiTracks" style="width:100%; padding:8px; margin-bottom:10px;"></select>
-        <button onclick="convertToAbc()" style="background:#0984e3;">⚡ 轉換樂譜</button>
-    </div>
-    <input type="text" id="userMsg" value="祝你今天有個旋律般的好心情">
-    <textarea id="userAbc" placeholder="ABC樂譜串..."></textarea>
-    <button id="playBtn" onclick="togglePreview()" style="background:#00b894;">▶️ 播放 / 停止試聽</button>
+    <h3 style="text-align:center; color:var(--primary); margin:0 0 10px 0;">製作賀卡內容</h3>
+    <input type="text" id="userMsg" value="祝你恭喜發財，好運連連！" style="width:100%; padding:10px; border:1px solid #ddd; border-radius:10px; margin-bottom:10px; box-sizing:border-box;">
+    <textarea id="userAbc">z4 C2 D2 | E2 E2 D2 C2 | E6 G2 | A2 A2 G2 E2 | A6 A2 | c2 c2 A2 G2 | E2 G2 A2 G2 | E2 E2 D2 C2 | D6 C2 | E2 E2 D2 C2 | D6 C2 | E2 E2 D2 C2 | D6 G,2 | C2 C2 D2 D2 | E2 E2 G2 G2 | A2 G2 E2 D2 | C6 z2 |</textarea>
+    <button id="playBtn" onclick="togglePreview()">▶️ 試聽 / 停止</button>
     <button onclick="generatePureUrl()">🔗 複製分享連結</button>
 </div>
 
 <div id="card-container" class="hidden" onclick="unlockAudioAndOpen()">
     <div id="card-flap">
-        <div id="card-cover">
-            <div style="font-size: 60px;">🎁</div>
-            <h2>專屬驚喜</h2>
-            <p>點擊翻開</p>
-        </div>
+        <div id="card-cover"></div>
         <div id="card-left-inner"></div>
     </div>
     <div id="card-right-inner">
@@ -85,30 +76,40 @@
 
 <script>
     const MusicModule = {
-        isPlaying: false, sampler: null, part: null, typingInterval: null,
+        isPlaying: false, sampler: null, part: null,
         async init() {
             if (this.sampler) return;
             await Tone.start();
-            this.sampler = new Tone.Sampler({ urls: { C4: "https://tonejs.github.io/audio/salamander/C4.mp3" }, release: 1 }).toDestination();
+            this.sampler = new Tone.Sampler({ 
+                urls: { C4: "https://tonejs.github.io/audio/salamander/C4.mp3" }, 
+                release: 1 
+            }).toDestination();
         },
         stop() {
             Tone.Transport.stop(); Tone.Transport.cancel();
             if (this.part) { this.part.dispose(); this.part = null; }
-            if (this.typingInterval) clearInterval(this.typingInterval);
             this.isPlaying = false;
-            document.getElementById('playBtn').innerText = "▶️ 播放 / 試聽";
+            document.getElementById('playBtn').innerText = "▶️ 試聽 / 停止";
         },
         play(abcStr, isFinal = false) {
             this.stop();
-            const textarea = document.getElementById('userAbc');
+            // 修正：強大的正則表達式，支援大小寫及高低音修飾符
             const regex = /(\^?[A-Ga-g][,']*[\d]*|z[\d]*)/g;
             let melodyData = [], totalTime = 0, tick = 0.125, match;
 
             while ((match = regex.exec(abcStr)) !== null) {
-                const token = match[0], dur = (token.match(/\d+/) || [1])[0];
-                const pitch = token.startsWith('z') ? null : this.parseAbc(token.replace(/\d+/g, ''));
-                melodyData.push({ time: totalTime * tick, pitch, duration: (dur * tick * 0.9) + "s", start: match.index, end: match.index + token.length });
-                totalTime += parseInt(dur);
+                const token = match[0];
+                const durMatch = token.match(/\d+/);
+                const dur = durMatch ? parseInt(durMatch[0]) : 1;
+                const notePart = token.replace(/\d+/g, '');
+                const pitch = token.startsWith('z') ? null : this.parseAbc(notePart);
+                
+                melodyData.push({ 
+                    time: totalTime * tick, 
+                    pitch, 
+                    duration: (dur * tick * 0.9) + "s"
+                });
+                totalTime += dur;
             }
 
             this.part = new Tone.Part((time, n) => {
@@ -117,10 +118,6 @@
                     if (n.pitch) {
                         const el = document.getElementById(`key-${n.pitch.replace('#', 's')}`);
                         if (el) { el.classList.add('active'); setTimeout(() => el.classList.remove('active'), 150); }
-                    }
-                    if (!isFinal) {
-                        textarea.setSelectionRange(n.start, n.end);
-                        textarea.focus();
                     }
                 }, time);
             }, melodyData);
@@ -131,29 +128,19 @@
             Tone.Transport.start(); 
             this.isPlaying = true;
             document.getElementById('playBtn').innerText = "⏹️ 停止播放";
-
-            if (isFinal) {
-                const msg = document.getElementById('userMsg').value;
-                const el = document.getElementById('typing-text');
-                el.innerText = ""; let i = 0;
-                this.typingInterval = setInterval(() => { if (i < msg.length) { el.innerText += msg[i]; i++; } else clearInterval(this.typingInterval); }, 150);
-            }
         },
         parseAbc(abcNote) {
-            let sharp = abcNote.includes('^') ? '#' : '', note = abcNote.match(/[A-Ga-g]/)[0], oct = (note === note.toLowerCase()) ? 5 : 4;
-            oct = oct - (abcNote.match(/,/g) || []).length + (abcNote.match(/'/g) || []).length;
-            return note.toUpperCase() + sharp + oct;
+            let sharp = abcNote.includes('^') ? '#' : '';
+            let noteName = abcNote.match(/[A-Ga-g]/)[0];
+            let octave = (noteName === noteName.toLowerCase()) ? 5 : 4;
+            octave -= (abcNote.match(/,/g) || []).length;
+            octave += (abcNote.match(/'/g) || []).length;
+            return noteName.toUpperCase() + sharp + octave;
         }
     };
 
     window.onload = () => {
         const urlParams = new URLSearchParams(window.location.search);
-        const leftPage = document.getElementById('card-left-inner');
-        const img = new Image();
-        img.onload = () => { leftPage.style.backgroundImage = `url('${img.src}')`; };
-        // 更換為透明背景的 white6.png
-        img.src = "white6.png"; 
-
         if (urlParams.has('abc')) {
             document.getElementById('editor-ui').classList.add('hidden');
             document.getElementById('card-container').classList.remove('hidden');
@@ -171,7 +158,16 @@
         const container = document.getElementById('card-container');
         if (!container.classList.contains('is-open')) {
             container.classList.add('is-open');
-            setTimeout(() => MusicModule.play(document.getElementById('userAbc').value, true), 800);
+            setTimeout(() => {
+                const msg = document.getElementById('userMsg').value;
+                const el = document.getElementById('typing-text');
+                el.innerText = ""; let i = 0;
+                const timer = setInterval(() => { 
+                    if (i < msg.length) { el.innerText += msg[i]; i++; } 
+                    else clearInterval(timer); 
+                }, 150);
+                MusicModule.play(document.getElementById('userAbc').value, true);
+            }, 800);
         }
     }
 
@@ -187,36 +183,13 @@
         params.set('t', document.getElementById('userMsg').value);
         params.set('v', '2'); params.set('abc', compressed);
         const url = `${window.location.origin}${window.location.pathname}?${params.toString()}`;
-        navigator.clipboard.writeText(url).then(() => alert("✅ 連結已複製！"));
+        navigator.clipboard.writeText(url).then(() => alert("✅ 分享連結已複製！"));
     }
 
     function injectPiano() {
         const p = document.getElementById('piano-inner-container');
         const notes = ["C4","C#4","D4","D#4","E4","F4","F#4","G4","G#4","A4","A#4","B4","C5","C#5","D5","D#5","E5","F5","F#5","G5","G#5","A5","A#5","B5"];
         p.innerHTML = notes.map(n => `<div class="key ${n.includes('#') ? 'black' : ''}" id="key-${n.replace('#', 's')}"></div>`).join('');
-    }
-
-    async function handleMidiUpload() {
-        const file = document.getElementById('midiInput').files[0];
-        if (!file) return;
-        window.currentMidi = new Midi(await file.arrayBuffer());
-        const select = document.getElementById('midiTracks'); select.innerHTML = "";
-        window.currentMidi.tracks.forEach((t, i) => { if(t.notes.length > 0) select.add(new Option(`軌道 ${i+1} (${t.notes.length}音符)`, i)); });
-        document.getElementById('midi-tool').classList.remove('hidden');
-    }
-
-    function convertToAbc() {
-        const track = window.currentMidi.tracks[document.getElementById('midiTracks').value];
-        let abc = "", lastEnd = 0;
-        track.notes.forEach(note => {
-            const wait = note.time - lastEnd;
-            if (wait > 0.05) { let z = Math.round(wait * 8); if (z > 0) abc += "z" + (z > 1 ? z : "") + " "; }
-            let p = note.pitch.replace(/[0-9]/g, '').replace('#', '^'), oct = note.octave;
-            let fn = (oct === 4) ? p.toUpperCase() : (oct === 5) ? p.toLowerCase() : (oct < 4) ? p.toUpperCase() + ",".repeat(4-oct) : p.toLowerCase() + "'".repeat(oct-5);
-            abc += fn + (Math.round(note.duration * 8) > 1 ? Math.round(note.duration * 8) : "") + " ";
-            lastEnd = note.time + note.duration;
-        });
-        document.getElementById('userAbc').value = abc.trim();
     }
 </script>
 </body>
