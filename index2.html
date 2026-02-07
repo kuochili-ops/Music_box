@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>音樂影像賀卡 (Pro Visualizer) 🎵📸</title>
+    <title>音樂影像賀卡 (Neon Edition) 🎵📸</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/lz-string/1.4.4/lz-string.min.js"></script>
     <style>
@@ -14,50 +14,47 @@
             --flip-duration: 2.2s; 
             --card-width: 350px;
             --card-height: 500px;
+            /* 定義螢光綠 */
+            --neon-green: #39FF14;
         }
         body { font-family: -apple-system, sans-serif; background: var(--bg); margin: 0; display: flex; flex-direction: column; justify-content: center; align-items: center; min-height: 100vh; perspective: 2000px; overflow: hidden; }
         
-        /* 卡片容器 */
         #card-container { width: var(--card-width); height: var(--card-height); position: relative; transform-style: preserve-3d; transition: transform var(--flip-duration) cubic-bezier(0.4, 0, 0.2, 1); cursor: pointer; }
         #card-container.is-open { transform: translateX(175px); }
 
-        /* 翻開的封面 */
         #card-flap { position: absolute; width: 100%; height: 100%; top: 0; left: 0; transform-style: preserve-3d; transform-origin: left; transition: transform var(--flip-duration) cubic-bezier(0.4, 0, 0.2, 1); z-index: 100; }
         .hint-animation { animation: flap-hint 3s ease-in-out infinite; }
         @keyframes flap-hint { 0%, 100% { transform: rotateY(0deg); } 50% { transform: rotateY(-12deg); } }
 
         #card-container.is-open #card-flap { transform: rotateY(-180deg); }
-        
-        /* 封面圖片 */
         #card-cover { position: absolute; width: 100%; height: 100%; background-image: url('IMG_6823.jpeg'); background-size: cover; background-position: center; border-radius: 0 15px 15px 0; backface-visibility: hidden; box-shadow: 10px 0 20px rgba(0,0,0,0.1); }
-        #card-cover.no-img { background: linear-gradient(135deg, #a8c0ff 0%, #3f2b96 100%); display:flex; align-items:center; justify-content:center; color:white; font-size:24px; font-weight:bold;}
+        #card-cover.no-img { background: linear-gradient(135deg, #2d3436 0%, #000000 100%); display:flex; align-items:center; justify-content:center; color:var(--neon-green); font-size:24px; font-weight:bold;}
 
-        /* 左側內頁 */
         #card-left-inner { position: absolute; width: 100%; height: 100%; background-color: var(--soft-red); background-image: url('white6.png'); background-size: contain; background-repeat: no-repeat; background-position: center; border-radius: 15px 0 0 15px; transform: rotateY(180deg); backface-visibility: hidden; }
 
-        /* 右側內頁 */
         #card-right-inner { position: absolute; width: 100%; height: 100%; top: 0; left: 0; background: white; border-radius: 0 15px 15px 0; display: flex; flex-direction: column; align-items: center; padding: 25px 20px; box-sizing: border-box; z-index: 10; clip-path: inset(0 0 0 100%); transition: clip-path 1.8s cubic-bezier(0.19, 1, 0.22, 1); }
         #card-container.is-open #card-right-inner { clip-path: inset(0 0 0 0); }
         
-        /* --- 音樂視覺化 (物理模擬版) --- */
+        /* --- 改良後的螢光等化器 --- */
         #music-visualizer { 
             display: flex; justify-content: center; align-items: flex-end; 
-            width: 100%; height: 70px; background: #2d3436; 
-            border-radius: 8px; margin-bottom: 20px; padding: 10px; box-sizing: border-box; gap: 4px;
+            width: 100%; height: 80px; 
+            background: #000000; /* 改為純黑背景 */
+            border-radius: 8px; margin-bottom: 20px; padding: 10px; box-sizing: border-box; gap: 3px;
+            box-shadow: inset 0 0 10px rgba(57, 255, 20, 0.2); /* 內框微弱綠光 */
         }
         .bar { 
             flex: 1;
-            background: #ff7675; 
+            background: var(--neon-green); 
             border-radius: 2px 2px 0 0; 
             height: 5%; 
-            /* 關鍵：取消 CSS transition，改用 JS 控制每一幀，反應更靈敏 */
             will-change: height;
+            /* 加上霓虹發光效果 */
+            box-shadow: 0 0 8px var(--neon-green);
         }
         
-        /* 隱藏 YouTube Player */
         #youtube-player-container { position: absolute; width: 1px; height: 1px; opacity: 0; pointer-events: none; top: -1000px; }
 
-        /* UI 元件 */
         .editor-box { background: white; padding: 20px; border-radius: 20px; box-shadow: 0 10px 30px rgba(0,0,0,0.1); width: 90%; max-width: 420px; margin: 20px; z-index: 500; text-align: center; }
         .editor-box h3 { color: var(--primary); margin: 0 0 15px 0; }
         input[type="text"] { width: 100%; padding: 12px; border: 1px solid #ddd; border-radius: 10px; margin-bottom: 10px; box-sizing: border-box; font-size: 16px; }
@@ -73,11 +70,11 @@
 <body>
 
 <div id="editor-ui" class="editor-box">
-    <h3>💌 製作你的音樂賀卡</h3>
+    <h3>💌 製作你的螢光音樂賀卡</h3>
     <input type="text" id="userMsg" value="祝你今天有個旋律般的好心情" placeholder="輸入祝福的話...">
     <button onclick="generatePureUrl()">🔗 複製並分享賀卡連結</button>
     <button class="secondary" onclick="previewCard()">👀 預覽卡片效果</button>
-    <p class="status-text">音樂來源：YouTube Playlist (模擬頻譜)</p>
+    <p class="status-text">Neon Visualizer Mode</p>
 </div>
 
 <div id="card-container" class="hidden" onclick="unlockAudioAndOpen()">
@@ -87,6 +84,7 @@
     </div>
     <div id="card-right-inner">
         <div id="music-visualizer">
+            <div class="bar"></div><div class="bar"></div><div class="bar"></div><div class="bar"></div>
             <div class="bar"></div><div class="bar"></div><div class="bar"></div><div class="bar"></div>
             <div class="bar"></div><div class="bar"></div><div class="bar"></div><div class="bar"></div>
             <div class="bar"></div><div class="bar"></div><div class="bar"></div><div class="bar"></div>
@@ -102,7 +100,6 @@
 <div id="youtube-player-container"><div id="yt-player"></div></div>
 
 <script>
-    // --- 1. YouTube 設定 ---
     let player, isPlayerReady = false;
     const PLAYLIST_ID = 'PL1U2BLQmiBscIDy9QQvCmAF-rKjhafMuM'; 
 
@@ -120,57 +117,39 @@
     }
     function onPlayerReady(event) { isPlayerReady = true; player.setShuffle(true); }
 
-    // --- 2. 物理模擬視覺化引擎 ---
+    // --- 物理引擎 ---
     let visualizerInterval = null;
     const bars = document.querySelectorAll('.bar');
-    // 紀錄每一根柱子當前的高度
     let currentHeights = new Array(bars.length).fill(5);
-    // 紀錄每一根柱子的下落速度 (重力)
-    let velocities = new Array(bars.length).fill(0);
 
     function startPhysicsVisualizer() {
         if (visualizerInterval) clearInterval(visualizerInterval);
-        
-        // 提高更新頻率到 30ms (約 33fps)，讓動畫更流暢
         visualizerInterval = setInterval(() => {
             bars.forEach((bar, i) => {
-                // A. 模擬音樂節奏衝擊 (Kick)
-                // 隨機判定是否要「跳一下」，低頻(左邊i小)機率低但跳得高，高頻(右邊)機率高但跳得低
-                let triggerChance = 0.15; // 觸發機率
+                let triggerChance = 0.2; 
                 if (Math.random() < triggerChance) {
-                    // 設定一個目標高度 (隨機)
-                    let targetHeight = Math.random() * 80 + 10;
-                    // 如果目標比當前高，瞬間跳上去 (模擬 Attack)
+                    let targetHeight = Math.random() * 85 + 10;
                     if (targetHeight > currentHeights[i]) {
                         currentHeights[i] = targetHeight;
-                        velocities[i] = 0; // 重置下落速度
                     }
                 }
-
-                // B. 模擬重力下落 (Gravity / Decay)
-                // 每一幀都讓高度減少，且速度越來越快 (或固定速度)
-                currentHeights[i] -= 4; // 下落速度
-
-                // C. 邊界檢查
+                // 下落物理：模擬重力
+                currentHeights[i] -= 5.5; 
                 if (currentHeights[i] < 5) { currentHeights[i] = 5; }
-
-                // D. 應用高度
                 bar.style.height = `${currentHeights[i]}%`;
                 
-                // E. 顏色動態變化 (越高越亮)
-                let opacity = 0.5 + (currentHeights[i] / 200);
-                bar.style.opacity = opacity;
+                // 根據高度調整發光亮度
+                let brightness = 0.4 + (currentHeights[i] / 100);
+                bar.style.filter = `brightness(${brightness})`;
             });
-        }, 40); 
+        }, 45); 
     }
 
-    // --- 3. 頁面邏輯 ---
     let typingInterval = null;
-
     window.onload = () => {
         const cover = document.getElementById('card-cover');
         const img = new Image(); img.src = 'IMG_6823.jpeg';
-        img.onerror = () => { cover.style.backgroundImage = 'none'; cover.classList.add('no-img'); cover.innerHTML = "🎶"; };
+        img.onerror = () => { cover.style.backgroundImage = 'none'; cover.classList.add('no-img'); cover.innerHTML = "NEON MUSIC"; };
 
         const urlParams = new URLSearchParams(window.location.search);
         if (urlParams.has('v')) {
@@ -190,7 +169,7 @@
         if (!container.classList.contains('is-open')) {
             if (isPlayerReady) {
                 player.playVideo(); player.unMute(); player.setVolume(70);
-                startPhysicsVisualizer(); // 啟動物理模擬
+                startPhysicsVisualizer();
             }
             flap.classList.remove('hint-animation');
             setTimeout(() => { container.classList.add('is-open'); }, 50);
@@ -216,9 +195,9 @@
         const msg = document.getElementById('userMsg').value;
         const params = new URLSearchParams();
         params.set('t', encodeURIComponent(msg));
-        params.set('v', '4'); 
+        params.set('v', '5'); 
         const url = `${window.location.origin}${window.location.pathname}?${params.toString()}`;
-        navigator.clipboard.writeText(url).then(() => { alert("✅ 連結已複製！"); });
+        navigator.clipboard.writeText(url).then(() => { alert("✅ 螢光賀卡連結已複製！"); });
     }
 </script>
 </body>
