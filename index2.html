@@ -3,220 +3,266 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>音樂影像賀卡 🎹📸</title>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/tone/14.8.49/Tone.js"></script>
+    <title>音樂影像賀卡 (YouTube Edition) 🎵📸</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/lz-string/1.4.4/lz-string.min.js"></script>
-    <script src="https://unpkg.com/@tonejs/midi"></script>
     <style>
-        :root { --primary: #6c5ce7; --bg: #f1f2f6; --soft-red: #ffe3e3; }
+        :root { 
+            --primary: #6c5ce7; 
+            --bg: #f1f2f6; 
+            --soft-red: #ffe3e3; 
+            --flip-duration: 2.2s; 
+            --card-width: 350px;
+            --card-height: 500px;
+        }
         body { font-family: -apple-system, sans-serif; background: var(--bg); margin: 0; display: flex; flex-direction: column; justify-content: center; align-items: center; min-height: 100vh; perspective: 2000px; overflow: hidden; }
         
-        #card-container { width: 350px; height: 500px; position: relative; transform-style: preserve-3d; transition: transform 1.2s cubic-bezier(0.4, 0, 0.2, 1); cursor: pointer; }
+        /* 卡片容器 */
+        #card-container { width: var(--card-width); height: var(--card-height); position: relative; transform-style: preserve-3d; transition: transform var(--flip-duration) cubic-bezier(0.4, 0, 0.2, 1); cursor: pointer; }
         #card-container.is-open { transform: translateX(175px); }
 
-        #card-flap { position: absolute; width: 100%; height: 100%; top: 0; left: 0; transform-style: preserve-3d; transform-origin: left; transition: transform 1.2s cubic-bezier(0.4, 0, 0.2, 1); z-index: 100; }
+        /* 翻開的封面 */
+        #card-flap { position: absolute; width: 100%; height: 100%; top: 0; left: 0; transform-style: preserve-3d; transform-origin: left; transition: transform var(--flip-duration) cubic-bezier(0.4, 0, 0.2, 1); z-index: 100; }
+        .hint-animation { animation: flap-hint 3s ease-in-out infinite; }
+        @keyframes flap-hint { 0%, 100% { transform: rotateY(0deg); } 50% { transform: rotateY(-12deg); } }
+
         #card-container.is-open #card-flap { transform: rotateY(-180deg); }
-
-        #card-cover { position: absolute; width: 100%; height: 100%; background: var(--primary); color: white; border-radius: 0 15px 15px 0; display: flex; flex-direction: column; justify-content: center; align-items: center; backface-visibility: hidden; box-shadow: 10px 0 20px rgba(0,0,0,0.1); }
         
-        /* 圖片頁優化：透明 PNG 搭配淡紅背景 */
-        #card-left-inner { 
-            position: absolute; width: 100%; height: 100%; 
-            background-color: var(--soft-red); 
-            background-size: contain; 
-            background-repeat: no-repeat; 
-            background-position: center; 
-            border-radius: 15px 0 0 15px; 
-            transform: rotateY(180deg); 
-            backface-visibility: hidden; 
-            border: none;
-            outline: none;
+        /* 封面圖片 */
+        #card-cover { position: absolute; width: 100%; height: 100%; background-image: url('IMG_6823.jpeg'); background-size: cover; background-position: center; border-radius: 0 15px 15px 0; backface-visibility: hidden; box-shadow: 10px 0 20px rgba(0,0,0,0.1); }
+        /* 如果沒有圖片，給一個預設漸層 */
+        #card-cover.no-img { background: linear-gradient(135deg, #a8c0ff 0%, #3f2b96 100%); display:flex; align-items:center; justify-content:center; color:white; font-size:24px; font-weight:bold;}
+
+        /* 左側內頁 (翻開後封面的背面) */
+        #card-left-inner { position: absolute; width: 100%; height: 100%; background-color: var(--soft-red); background-image: url('white6.png'); background-size: contain; background-repeat: no-repeat; background-position: center; border-radius: 15px 0 0 15px; transform: rotateY(180deg); backface-visibility: hidden; }
+
+        /* 右側內頁 (主要內容區) */
+        #card-right-inner { position: absolute; width: 100%; height: 100%; top: 0; left: 0; background: white; border-radius: 0 15px 15px 0; display: flex; flex-direction: column; align-items: center; padding: 25px 20px; box-sizing: border-box; z-index: 10; clip-path: inset(0 0 0 100%); transition: clip-path 1.8s cubic-bezier(0.19, 1, 0.22, 1); }
+        #card-container.is-open #card-right-inner { clip-path: inset(0 0 0 0); }
+        
+        /* 音樂視覺化 (取代鋼琴) */
+        #music-visualizer { 
+            display: flex; justify-content: center; align-items: flex-end; 
+            width: 100%; height: 60px; background: #2d3436; 
+            border-radius: 8px; margin-bottom: 20px; padding: 10px; box-sizing: border-box; gap: 4px;
         }
-
-        #card-right-inner { position: absolute; width: 100%; height: 100%; top: 0; left: 0; background: white; border-radius: 0 15px 15px 0; display: flex; flex-direction: column; align-items: center; padding: 25px 20px; box-sizing: border-box; z-index: 10; border: none; }
+        .bar { width: 6px; background: #ff7675; animation: equalizer 1s ease-in-out infinite; border-radius: 2px; height: 10%; }
+        /* 產生隨機波動 */
+        .bar:nth-child(1) { animation-duration: 0.8s; } .bar:nth-child(2) { animation-duration: 1.1s; } .bar:nth-child(3) { animation-duration: 1.3s; }
+        .bar:nth-child(4) { animation-duration: 0.9s; } .bar:nth-child(5) { animation-duration: 1.2s; } .bar:nth-child(6) { animation-duration: 1.0s; }
+        .bar:nth-child(7) { animation-duration: 1.4s; } .bar:nth-child(8) { animation-duration: 0.8s; } .bar:nth-child(9) { animation-duration: 1.1s; }
+        .bar:nth-child(10) { animation-duration: 0.9s; }
         
-        #piano-inner-container { display: flex; width: 100%; height: 70px; background: #333; border-radius: 8px; margin-bottom: 20px; padding: 3px; opacity: 0; transition: opacity 0.5s; }
-        #card-container.is-open #piano-inner-container { opacity: 1; }
-        .key { flex: 1; border: 1px solid #ddd; background: white; border-radius: 0 0 4px 4px; }
-        .key.black { background: #000; height: 60%; margin-left: -4%; margin-right: -4%; z-index: 15; flex: 0.6; border: none; }
-        .key.active { background: #ff7675 !important; }
+        @keyframes equalizer { 0%, 100% { height: 10%; } 50% { height: 80%; } }
+        
+        /* 隱藏 YouTube Player (只聽聲音) */
+        #youtube-player-container { position: absolute; width: 1px; height: 1px; opacity: 0; pointer-events: none; top: -1000px; }
 
-        .editor-box { background: white; padding: 20px; border-radius: 20px; box-shadow: 0 10px 30px rgba(0,0,0,0.1); width: 90%; max-width: 400px; margin: 20px; z-index: 500; }
-        #userAbc { width: 100%; height: 100px; padding: 10px; border: 1px solid #ddd; border-radius: 10px; background: #2d3436; color: #74b9ff; font-family: monospace; font-size: 14px; margin: 5px 0; resize: none; outline: none; }
-        #userAbc::selection { background: #6c5ce7; color: #fff; }
+        /* 編輯器 UI */
+        .editor-box { background: white; padding: 20px; border-radius: 20px; box-shadow: 0 10px 30px rgba(0,0,0,0.1); width: 90%; max-width: 420px; margin: 20px; z-index: 500; text-align: center; }
+        .editor-box h3 { color: var(--primary); margin: 0 0 15px 0; }
+        input[type="text"] { width: 100%; padding: 12px; border: 1px solid #ddd; border-radius: 10px; margin-bottom: 10px; box-sizing: border-box; font-size: 16px; }
+        button { width: 100%; padding: 12px; border-radius: 10px; border: none; font-weight: bold; cursor: pointer; background: var(--primary); color: white; margin-top: 8px; transition: 0.2s; font-size: 15px; }
+        button:active { transform: scale(0.98); }
+        button.secondary { background: #b2bec3; }
 
-        input[type="text"] { width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 10px; margin-bottom: 10px; box-sizing: border-box; }
-        button { width: 100%; padding: 12px; border-radius: 10px; border: none; font-weight: bold; cursor: pointer; background: var(--primary); color: white; margin-top: 8px; }
-        #typing-text { font-size: 1.1rem; font-weight: 700; color: #2d3436; text-align: center; min-height: 4em; white-space: pre-wrap; margin-top: 10px;}
+        /* 內文打字效果 */
+        #typing-text { font-size: 1.1rem; font-weight: 700; color: #2d3436; text-align: center; min-height: 4em; white-space: pre-wrap; margin-top: 10px; line-height: 1.6; }
+        
         .hidden { display: none !important; }
+        .status-text { font-size: 12px; color: #636e72; margin-top: 5px; }
     </style>
 </head>
 <body>
 
 <div id="editor-ui" class="editor-box">
-    <h3 style="text-align:center; color:var(--primary); margin:0 0 10px 0;">製作我的音樂賀卡</h3>
-    <input type="file" id="midiInput" accept=".mid,.midi" onchange="handleMidiUpload()">
-    <div id="midi-tool" class="hidden">
-        <select id="midiTracks" style="width:100%; padding:8px; margin-bottom:10px;"></select>
-        <button onclick="convertToAbc()" style="background:#0984e3;">⚡ 轉換樂譜</button>
-    </div>
-    <input type="text" id="userMsg" value="祝你今天有個旋律般的好心情">
-    <textarea id="userAbc" placeholder="ABC樂譜串..."></textarea>
-    <button id="playBtn" onclick="togglePreview()" style="background:#00b894;">▶️ 播放 / 停止試聽</button>
-    <button onclick="generatePureUrl()">🔗 複製分享連結</button>
+    <h3>💌 製作你的音樂賀卡</h3>
+    <p style="font-size:14px; color:#666;">輸入祝福語，背景音樂已設為專屬播放清單。</p>
+    
+    <input type="text" id="userMsg" value="祝你今天有個旋律般的好心情" placeholder="輸入祝福的話...">
+    
+    <button onclick="generatePureUrl()">🔗 複製並分享賀卡連結</button>
+    <button class="secondary" onclick="previewCard()">👀 預覽卡片效果</button>
+    <p class="status-text">音樂來源：YouTube Playlist</p>
 </div>
 
 <div id="card-container" class="hidden" onclick="unlockAudioAndOpen()">
-    <div id="card-flap">
-        <div id="card-cover">
-            <div style="font-size: 60px;">🎁</div>
-            <h2>專屬驚喜</h2>
-            <p>點擊翻開</p>
-        </div>
+    <div id="card-flap" class="hint-animation">
+        <div id="card-cover"></div> 
         <div id="card-left-inner"></div>
     </div>
     <div id="card-right-inner">
-        <div id="piano-inner-container"></div>
+        <div id="music-visualizer">
+            <div class="bar"></div><div class="bar"></div><div class="bar"></div><div class="bar"></div>
+            <div class="bar"></div><div class="bar"></div><div class="bar"></div><div class="bar"></div>
+            <div class="bar"></div><div class="bar"></div>
+        </div>
+        
         <div id="typing-text"></div>
+        
         <div id="qrcode-container" style="margin-top:auto;"></div>
+        <p style="font-size:10px; color:#b2bec3; margin-top:5px;">Click card to play music</p>
     </div>
 </div>
 
+<div id="youtube-player-container">
+    <div id="yt-player"></div>
+</div>
+
 <script>
-    const MusicModule = {
-        isPlaying: false, sampler: null, part: null, typingInterval: null,
-        async init() {
-            if (this.sampler) return;
-            await Tone.start();
-            this.sampler = new Tone.Sampler({ urls: { C4: "https://tonejs.github.io/audio/salamander/C4.mp3" }, release: 1 }).toDestination();
-        },
-        stop() {
-            Tone.Transport.stop(); Tone.Transport.cancel();
-            if (this.part) { this.part.dispose(); this.part = null; }
-            if (this.typingInterval) clearInterval(this.typingInterval);
-            this.isPlaying = false;
-            document.getElementById('playBtn').innerText = "▶️ 播放 / 試聽";
-        },
-        play(abcStr, isFinal = false) {
-            this.stop();
-            const textarea = document.getElementById('userAbc');
-            const regex = /(\^?[A-Ga-g][,']*[\d]*|z[\d]*)/g;
-            let melodyData = [], totalTime = 0, tick = 0.125, match;
+    // YouTube Player API 變數
+    let player;
+    let isPlayerReady = false;
+    const PLAYLIST_ID = 'PL1U2BLQmiBscIDy9QQvCmAF-rKjhafMuM'; // 您指定的播放清單
 
-            while ((match = regex.exec(abcStr)) !== null) {
-                const token = match[0], dur = (token.match(/\d+/) || [1])[0];
-                const pitch = token.startsWith('z') ? null : this.parseAbc(token.replace(/\d+/g, ''));
-                melodyData.push({ time: totalTime * tick, pitch, duration: (dur * tick * 0.9) + "s", start: match.index, end: match.index + token.length });
-                totalTime += parseInt(dur);
+    // 1. 載入 YouTube IFrame API
+    const tag = document.createElement('script');
+    tag.src = "https://www.youtube.com/iframe_api";
+    const firstScriptTag = document.getElementsByTagName('script')[0];
+    firstScriptTag.parentNode.insertBefore(tag, firstScriptTag);
+
+    // 2. API 準備就緒後的回調
+    function onYouTubeIframeAPIReady() {
+        player = new YT.Player('yt-player', {
+            height: '200',
+            width: '200',
+            playerVars: {
+                'listType': 'playlist',
+                'list': PLAYLIST_ID,
+                'autoplay': 0,      // 手機版通常禁止自動播放，需使用者互動
+                'controls': 0,      // 隱藏控制項
+                'showinfo': 0,      // 舊版參數，盡量減少資訊
+                'loop': 1,          // 循環播放
+                'playsinline': 1    // iOS 重要參數，防止全螢幕彈出
+            },
+            events: {
+                'onReady': onPlayerReady,
+                'onStateChange': onPlayerStateChange
             }
+        });
+    }
 
-            this.part = new Tone.Part((time, n) => {
-                if (n.pitch && this.sampler) this.sampler.triggerAttackRelease(n.pitch, n.duration, time);
-                Tone.Draw.schedule(() => {
-                    if (n.pitch) {
-                        const el = document.getElementById(`key-${n.pitch.replace('#', 's')}`);
-                        if (el) { el.classList.add('active'); setTimeout(() => el.classList.remove('active'), 150); }
-                    }
-                    if (!isFinal) {
-                        textarea.setSelectionRange(n.start, n.end);
-                        textarea.focus();
-                    }
-                }, time);
-            }, melodyData);
+    function onPlayerReady(event) {
+        isPlayerReady = true;
+        console.log("YouTube Player Ready");
+        // 為了確保播放清單隨機或從頭開始，可以在這裡設定
+        player.setShuffle(true); 
+    }
 
-            this.part.loop = true; 
-            this.part.loopEnd = totalTime * tick;
-            this.part.start(0); 
-            Tone.Transport.start(); 
-            this.isPlaying = true;
-            document.getElementById('playBtn').innerText = "⏹️ 停止播放";
+    function onPlayerStateChange(event) {
+        // 可以在這裡偵測播放狀態，例如播放結束自動重播等
+        // 如果是 playlist loop 模式，YouTube 通常會自動處理
+    }
 
-            if (isFinal) {
-                const msg = document.getElementById('userMsg').value;
-                const el = document.getElementById('typing-text');
-                el.innerText = ""; let i = 0;
-                this.typingInterval = setInterval(() => { if (i < msg.length) { el.innerText += msg[i]; i++; } else clearInterval(this.typingInterval); }, 150);
-            }
-        },
-        parseAbc(abcNote) {
-            let sharp = abcNote.includes('^') ? '#' : '', note = abcNote.match(/[A-Ga-g]/)[0], oct = (note === note.toLowerCase()) ? 5 : 4;
-            oct = oct - (abcNote.match(/,/g) || []).length + (abcNote.match(/'/g) || []).length;
-            return note.toUpperCase() + sharp + oct;
-        }
-    };
+    // --- 賀卡邏輯 ---
+
+    let typingInterval = null;
+    let isCardOpened = false;
 
     window.onload = () => {
-        const urlParams = new URLSearchParams(window.location.search);
-        const leftPage = document.getElementById('card-left-inner');
+        // 檢查是否有封面圖片，沒有的話給一個預設樣式
+        const cover = document.getElementById('card-cover');
         const img = new Image();
-        img.onload = () => { leftPage.style.backgroundImage = `url('${img.src}')`; };
-        // 更換為透明背景的 white6.png
-        img.src = "white6.png"; 
+        img.src = 'IMG_6823.jpeg';
+        img.onerror = () => {
+            cover.style.backgroundImage = 'none';
+            cover.classList.add('no-img');
+            cover.innerHTML = "🎶";
+        };
 
-        if (urlParams.has('abc')) {
+        const urlParams = new URLSearchParams(window.location.search);
+        if (urlParams.has('v')) {
+            // 觀看模式
             document.getElementById('editor-ui').classList.add('hidden');
             document.getElementById('card-container').classList.remove('hidden');
-            let abc = urlParams.get('abc');
-            if (urlParams.get('v') === '2') abc = LZString.decompressFromEncodedURIComponent(abc);
-            document.getElementById('userAbc').value = abc;
-            document.getElementById('userMsg').value = decodeURIComponent(urlParams.get('t') || "");
-            try { new QRCode(document.getElementById('qrcode-container'), { text: window.location.href, width: 80, height: 80 }); } catch(e){}
+            
+            // 解析訊息
+            const msg = decodeURIComponent(urlParams.get('t') || "");
+            // 將訊息暫存在 dataset 中
+            document.getElementById('typing-text').dataset.fullText = msg;
+
+            // 生成 QR Code 供分享
+            try { 
+                new QRCode(document.getElementById('qrcode-container'), { 
+                    text: window.location.href, 
+                    width: 70, 
+                    height: 70,
+                    colorDark : "#2d3436",
+                    colorLight : "#ffffff"
+                }); 
+            } catch(e){}
         }
-        injectPiano();
     };
 
-    async function unlockAudioAndOpen() {
-        await MusicModule.init();
+    // 用戶點擊卡片時觸發
+    function unlockAudioAndOpen() {
         const container = document.getElementById('card-container');
+        const flap = document.getElementById('card-flap');
+        const textEl = document.getElementById('typing-text');
+        
         if (!container.classList.contains('is-open')) {
-            container.classList.add('is-open');
-            setTimeout(() => MusicModule.play(document.getElementById('userAbc').value, true), 800);
+            // 1. 播放音樂 (必須在 click 事件中觸發以繞過瀏覽器限制)
+            if (isPlayerReady) {
+                player.playVideo();
+                // 確保取消靜音
+                player.unMute(); 
+                player.setVolume(70); 
+            }
+
+            // 2. 動畫處理
+            flap.classList.remove('hint-animation');
+            setTimeout(() => { container.classList.add('is-open'); }, 50);
+            
+            // 3. 打字機效果
+            const msg = textEl.dataset.fullText || document.getElementById('userMsg').value;
+            textEl.innerText = "";
+            let i = 0;
+            // 延遲一點再開始打字，配合卡片打開的時間
+            setTimeout(() => {
+                if (typingInterval) clearInterval(typingInterval);
+                typingInterval = setInterval(() => { 
+                    if (i < msg.length) { 
+                        textEl.innerText += msg[i]; 
+                        i++; 
+                    } else { 
+                        clearInterval(typingInterval); 
+                    } 
+                }, 150);
+            }, 1000);
+
+            isCardOpened = true;
+        } else {
+            // 如果再次點擊，可以選擇關閉卡片並停止音樂 (可選)
+            // 目前邏輯保持開啟，若要關閉可移除註解:
+            /*
+            container.classList.remove('is-open');
+            if(isPlayerReady) player.pauseVideo();
+            isCardOpened = false;
+            */
         }
     }
 
-    async function togglePreview() {
-        if (MusicModule.isPlaying) MusicModule.stop();
-        else { await MusicModule.init(); MusicModule.play(document.getElementById('userAbc').value, false); }
+    // 編輯器功能：預覽
+    function previewCard() {
+        document.getElementById('editor-ui').classList.add('hidden');
+        document.getElementById('card-container').classList.remove('hidden');
+        // 設定臨時文字
+        document.getElementById('typing-text').dataset.fullText = document.getElementById('userMsg').value;
     }
 
+    // 編輯器功能：生成連結
     function generatePureUrl() {
-        const abc = document.getElementById('userAbc').value;
-        const compressed = LZString.compressToEncodedURIComponent(abc);
+        const msg = document.getElementById('userMsg').value;
         const params = new URLSearchParams();
-        params.set('t', document.getElementById('userMsg').value);
-        params.set('v', '2'); params.set('abc', compressed);
+        params.set('t', encodeURIComponent(msg));
+        params.set('v', '3'); // 版本號
+        
+        // 移除原有的 abc 參數，因為不再需要樂譜
         const url = `${window.location.origin}${window.location.pathname}?${params.toString()}`;
-        navigator.clipboard.writeText(url).then(() => alert("✅ 連結已複製！"));
-    }
-
-    function injectPiano() {
-        const p = document.getElementById('piano-inner-container');
-        const notes = ["C4","C#4","D4","D#4","E4","F4","F#4","G4","G#4","A4","A#4","B4","C5","C#5","D5","D#5","E5","F5","F#5","G5","G#5","A5","A#5","B5"];
-        p.innerHTML = notes.map(n => `<div class="key ${n.includes('#') ? 'black' : ''}" id="key-${n.replace('#', 's')}"></div>`).join('');
-    }
-
-    async function handleMidiUpload() {
-        const file = document.getElementById('midiInput').files[0];
-        if (!file) return;
-        window.currentMidi = new Midi(await file.arrayBuffer());
-        const select = document.getElementById('midiTracks'); select.innerHTML = "";
-        window.currentMidi.tracks.forEach((t, i) => { if(t.notes.length > 0) select.add(new Option(`軌道 ${i+1} (${t.notes.length}音符)`, i)); });
-        document.getElementById('midi-tool').classList.remove('hidden');
-    }
-
-    function convertToAbc() {
-        const track = window.currentMidi.tracks[document.getElementById('midiTracks').value];
-        let abc = "", lastEnd = 0;
-        track.notes.forEach(note => {
-            const wait = note.time - lastEnd;
-            if (wait > 0.05) { let z = Math.round(wait * 8); if (z > 0) abc += "z" + (z > 1 ? z : "") + " "; }
-            let p = note.pitch.replace(/[0-9]/g, '').replace('#', '^'), oct = note.octave;
-            let fn = (oct === 4) ? p.toUpperCase() : (oct === 5) ? p.toLowerCase() : (oct < 4) ? p.toUpperCase() + ",".repeat(4-oct) : p.toLowerCase() + "'".repeat(oct-5);
-            abc += fn + (Math.round(note.duration * 8) > 1 ? Math.round(note.duration * 8) : "") + " ";
-            lastEnd = note.time + note.duration;
+        
+        navigator.clipboard.writeText(url).then(() => {
+            alert("✅ 連結已複製！\n\n發送給朋友，他們點開卡片時就會聽到 YouTube 播放清單的音樂囉！");
         });
-        document.getElementById('userAbc').value = abc.trim();
     }
 </script>
 </body>
