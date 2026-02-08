@@ -1,0 +1,236 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>馬年橫式 App 賀卡 🐎</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+    <style>
+        :root { 
+            --primary: #6c5ce7; 
+            --bg: #f1f2f6; 
+            --flip-duration: 1.6s; 
+            --card-width: 500px; 
+            --card-height: 350px;
+            --neon-green: #39FF14;
+        }
+        body { font-family: -apple-system, sans-serif; background: var(--bg); margin: 0; display: flex; flex-direction: column; justify-content: center; align-items: center; min-height: 100vh; perspective: 2000px; overflow: hidden; }
+        
+        #card-container { 
+            width: var(--card-width); 
+            height: var(--card-height); 
+            position: relative; 
+            transform-style: preserve-3d; 
+            cursor: pointer; 
+            transform: translateZ(0); 
+            margin-top: 150px; 
+        }
+
+        #card-flap { 
+            position: absolute; 
+            width: 100%; height: 100%; 
+            top: 0; left: 0; 
+            transform-style: preserve-3d; 
+            transform-origin: top; 
+            /* 預設過渡效果，稍後在 JS 中會切換 */
+            transition: transform 0.3s ease-out; 
+            z-index: 100; 
+            backface-visibility: hidden;
+            transform: rotateX(0deg);
+        }
+
+        /* 打開前的小幅度由下往上翻動動畫 */
+        .hint-animation { 
+            animation: flap-hint 3s ease-in-out infinite; 
+        }
+        @keyframes flap-hint { 
+            0%, 100% { transform: rotateX(0deg); } 
+            50% { transform: rotateX(12deg); } /* 向上微翻 */
+        }
+
+        /* 完整翻開的狀態 */
+        #card-container.is-open #card-flap { 
+            transform: rotateX(180deg); 
+            transition: transform var(--flip-duration) cubic-bezier(0.19, 1, 0.22, 1);
+        }
+        
+        #card-cover { 
+            position: absolute; width: 100%; height: 100%; 
+            background: url('IMG_6829.png') center/cover; 
+            border-radius: 12px 12px 0 0; 
+            backface-visibility: hidden; 
+            box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+        }
+
+        #card-top-inner { 
+            position: absolute; width: 100%; height: 100%; 
+            background: #fff url('IMG_6830.png') center/cover no-repeat; 
+            border-radius: 12px 12px 0 0; 
+            transform: rotateX(180deg); 
+            backface-visibility: hidden; 
+        }
+
+        #card-bottom-inner { 
+            position: absolute; width: 100%; height: 100%; 
+            top: 0; left: 0; 
+            background: #ffffff; 
+            border-radius: 0 0 12px 12px; 
+            display: flex; flex-direction: column; align-items: center; 
+            padding: 20px; box-sizing: border-box; 
+            z-index: 50;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.05);
+            contain: layout;
+        }
+        
+        #music-visualizer { 
+            display: flex; justify-content: center; align-items: flex-end; 
+            width: 80%; height: 65px; background: #000; 
+            border-radius: 10px; margin-top: 30px; padding: 12px; box-sizing: border-box; gap: 4px;
+        }
+        .bar { flex: 1; background: var(--neon-green); border-radius: 2px 2px 0 0; height: 5%; box-shadow: 0 0 8px var(--neon-green); }
+        
+        #typing-text { font-size: 1.3rem; font-weight: 800; color: #2d3436; text-align: center; min-height: 2.5em; margin: 20px 0; width: 100%; }
+        
+        #qrcode-container { 
+            position: absolute;
+            right: 15px; bottom: 15px;
+            background: white; padding: 5px; border-radius: 5px; 
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            z-index: 60;
+        }
+
+        .editor-box { background: white; padding: 20px; border-radius: 20px; box-shadow: 0 10px 30px rgba(0,0,0,0.1); width: 90%; max-width: 420px; margin: 20px; z-index: 500; text-align: center; }
+        input { width: 100%; padding: 12px; border: 1px solid #ddd; border-radius: 10px; margin-bottom: 10px; box-sizing: border-box; }
+        button { width: 100%; padding: 12px; border-radius: 10px; border: none; font-weight: bold; cursor: pointer; background: var(--primary); color: white; margin-top: 8px; }
+        .hidden { display: none !important; }
+
+        @media (max-width: 600px) {
+            :root { --card-width: 90vw; --card-height: 60vw; }
+            #card-container { margin-top: 45vw; }
+            #qrcode-container { transform: scale(0.8); right: 10px; bottom: 10px; }
+        }
+    </style>
+</head>
+<body>
+
+<div id="editor-ui" class="editor-box">
+    <h3>🐎 橫式 App 賀卡製作</h3>
+    <input type="text" id="userMsg" value="萬馬奔騰，新春大吉！" placeholder="輸入祝福...">
+    <button onclick="generatePureUrl()">🔗 複製分享連結</button>
+    <button style="background:#b2bec3;" onclick="previewCard()">👀 預覽卡片</button>
+</div>
+
+<div id="card-container" class="hidden" onclick="handleFlip()">
+    <div id="card-flap" class="hint-animation">
+        <div id="card-cover"></div> 
+        <div id="card-top-inner"></div>
+    </div>
+    <div id="card-bottom-inner">
+        <div id="music-visualizer">
+            <div class="bar"></div><div class="bar"></div><div class="bar"></div><div class="bar"></div>
+            <div class="bar"></div><div class="bar"></div><div class="bar"></div><div class="bar"></div>
+            <div class="bar"></div><div class="bar"></div><div class="bar"></div><div class="bar"></div>
+            <div class="bar"></div><div class="bar"></div><div class="bar"></div><div class="bar"></div>
+        </div>
+        <div id="typing-text"></div>
+        <div id="qrcode-container"></div>
+    </div>
+</div>
+
+<div id="youtube-player-container" style="position:absolute; width:1px; height:1px; opacity:0; pointer-events:none;"><div id="yt-player"></div></div>
+
+<script>
+    let player, isPlayerReady = false;
+    const PLAYLIST_ID = 'PL1U2BLQmiBscIDy9QQvCmAF-rKjhafMuM'; 
+
+    function onYouTubeIframeAPIReady() {
+        player = new YT.Player('yt-player', {
+            height: '100', width: '100',
+            playerVars: { 'listType': 'playlist', 'list': PLAYLIST_ID, 'autoplay': 0, 'controls': 0, 'loop': 1, 'playsinline': 1 },
+            events: { 'onReady': (e) => { isPlayerReady = true; player.setShuffle(true); } }
+        });
+    }
+
+    const tag = document.createElement('script');
+    tag.src = "https://www.youtube.com/iframe_api";
+    document.head.appendChild(tag);
+
+    let visualizerInterval = null;
+    const bars = document.querySelectorAll('.bar');
+    let currentHeights = new Array(bars.length).fill(5);
+
+    function startPhysicsVisualizer() {
+        if(visualizerInterval) return;
+        visualizerInterval = setInterval(() => {
+            bars.forEach((bar, i) => {
+                if (Math.random() < 0.22) currentHeights[i] = Math.random() * 85 + 10;
+                currentHeights[i] -= 6;
+                if (currentHeights[i] < 5) currentHeights[i] = 5;
+                bar.style.height = `${currentHeights[i]}%`;
+            });
+        }, 50);
+    }
+
+    // --- 關鍵修改：處理翻轉動作 ---
+    function handleFlip() {
+        const container = document.getElementById('card-container');
+        const flap = document.getElementById('card-flap');
+        
+        if (!container.classList.contains('is-open')) {
+            // 1. 立即停止提示動畫，卡片會先回到 rotateX(0) 的靜止狀態
+            flap.classList.remove('hint-animation');
+            
+            // 2. 稍微延遲，讓使用者感受到「停頓」與「重啟」，再進行大翻轉
+            setTimeout(() => {
+                if (isPlayerReady) { 
+                    player.playVideo(); 
+                    player.unMute(); 
+                    player.setVolume(70); 
+                    startPhysicsVisualizer(); 
+                }
+                container.classList.add('is-open');
+                startTyping();
+            }, 300); // 300ms 的靜止停頓感
+        }
+    }
+
+    function startTyping() {
+        const msg = document.getElementById('typing-text').dataset.fullText || document.getElementById('userMsg').value;
+        const textEl = document.getElementById('typing-text');
+        textEl.innerText = ""; let i = 0;
+        setTimeout(() => {
+            const timer = setInterval(() => {
+                if (i < msg.length) { textEl.innerText += msg[i]; i++; } else clearInterval(timer);
+            }, 150);
+        }, 1200);
+    }
+
+    window.onload = () => {
+        const urlParams = new URLSearchParams(window.location.search);
+        if (urlParams.has('t')) {
+            document.getElementById('editor-ui').classList.add('hidden');
+            document.getElementById('card-container').classList.remove('hidden');
+            document.getElementById('typing-text').dataset.fullText = decodeURIComponent(urlParams.get('t'));
+            new QRCode(document.getElementById('qrcode-container'), { text: window.location.href, width: 50, height: 50 });
+        }
+    };
+
+    function previewCard() {
+        document.getElementById('editor-ui').classList.add('hidden');
+        document.getElementById('card-container').classList.remove('hidden');
+    }
+
+    function generatePureUrl() {
+        const msg = document.getElementById('userMsg').value;
+        const encodedMsg = encodeURIComponent(msg);
+        const baseUrl = window.location.origin + window.location.pathname;
+        const finalUrl = `${baseUrl}?t=${encodedMsg}`;
+        if (navigator.clipboard && window.isSecureContext) {
+            navigator.clipboard.writeText(finalUrl).then(() => alert("✅ 連結已複製！"));
+        } else {
+            prompt("請手動複製連結：", finalUrl);
+        }
+    }
+</script>
+</body>
+</html>
