@@ -1,0 +1,204 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>音樂影像賀卡 (Neon Edition) 🎵📸</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/lz-string/1.4.4/lz-string.min.js"></script>
+    <style>
+        :root { 
+            --primary: #6c5ce7; 
+            --bg: #f1f2f6; 
+            --soft-red: #ffe3e3; 
+            --flip-duration: 2.2s; 
+            --card-width: 350px;
+            --card-height: 500px;
+            /* 定義螢光綠 */
+            --neon-green: #39FF14;
+        }
+        body { font-family: -apple-system, sans-serif; background: var(--bg); margin: 0; display: flex; flex-direction: column; justify-content: center; align-items: center; min-height: 100vh; perspective: 2000px; overflow: hidden; }
+        
+        #card-container { width: var(--card-width); height: var(--card-height); position: relative; transform-style: preserve-3d; transition: transform var(--flip-duration) cubic-bezier(0.4, 0, 0.2, 1); cursor: pointer; }
+        #card-container.is-open { transform: translateX(175px); }
+
+        #card-flap { position: absolute; width: 100%; height: 100%; top: 0; left: 0; transform-style: preserve-3d; transform-origin: left; transition: transform var(--flip-duration) cubic-bezier(0.4, 0, 0.2, 1); z-index: 100; }
+        .hint-animation { animation: flap-hint 3s ease-in-out infinite; }
+        @keyframes flap-hint { 0%, 100% { transform: rotateY(0deg); } 50% { transform: rotateY(-12deg); } }
+
+        #card-container.is-open #card-flap { transform: rotateY(-180deg); }
+        #card-cover { position: absolute; width: 100%; height: 100%; background-image: url('IMG_6823.jpeg'); background-size: cover; background-position: center; border-radius: 0 15px 15px 0; backface-visibility: hidden; box-shadow: 10px 0 20px rgba(0,0,0,0.1); }
+        #card-cover.no-img { background: linear-gradient(135deg, #2d3436 0%, #000000 100%); display:flex; align-items:center; justify-content:center; color:var(--neon-green); font-size:24px; font-weight:bold;}
+
+        #card-left-inner { position: absolute; width: 100%; height: 100%; background-color: var(--soft-red); background-image: url('white6.png'); background-size: contain; background-repeat: no-repeat; background-position: center; border-radius: 15px 0 0 15px; transform: rotateY(180deg); backface-visibility: hidden; }
+
+        #card-right-inner { position: absolute; width: 100%; height: 100%; top: 0; left: 0; background: white; border-radius: 0 15px 15px 0; display: flex; flex-direction: column; align-items: center; padding: 25px 20px; box-sizing: border-box; z-index: 10; clip-path: inset(0 0 0 100%); transition: clip-path 1.8s cubic-bezier(0.19, 1, 0.22, 1); }
+        #card-container.is-open #card-right-inner { clip-path: inset(0 0 0 0); }
+        
+        /* --- 改良後的螢光等化器 --- */
+        #music-visualizer { 
+            display: flex; justify-content: center; align-items: flex-end; 
+            width: 100%; height: 80px; 
+            background: #000000; /* 改為純黑背景 */
+            border-radius: 8px; margin-bottom: 20px; padding: 10px; box-sizing: border-box; gap: 3px;
+            box-shadow: inset 0 0 10px rgba(57, 255, 20, 0.2); /* 內框微弱綠光 */
+        }
+        .bar { 
+            flex: 1;
+            background: var(--neon-green); 
+            border-radius: 2px 2px 0 0; 
+            height: 5%; 
+            will-change: height;
+            /* 加上霓虹發光效果 */
+            box-shadow: 0 0 8px var(--neon-green);
+        }
+        
+        #youtube-player-container { position: absolute; width: 1px; height: 1px; opacity: 0; pointer-events: none; top: -1000px; }
+
+        .editor-box { background: white; padding: 20px; border-radius: 20px; box-shadow: 0 10px 30px rgba(0,0,0,0.1); width: 90%; max-width: 420px; margin: 20px; z-index: 500; text-align: center; }
+        .editor-box h3 { color: var(--primary); margin: 0 0 15px 0; }
+        input[type="text"] { width: 100%; padding: 12px; border: 1px solid #ddd; border-radius: 10px; margin-bottom: 10px; box-sizing: border-box; font-size: 16px; }
+        button { width: 100%; padding: 12px; border-radius: 10px; border: none; font-weight: bold; cursor: pointer; background: var(--primary); color: white; margin-top: 8px; transition: 0.2s; font-size: 15px; }
+        button:active { transform: scale(0.98); }
+        button.secondary { background: #b2bec3; }
+
+        #typing-text { font-size: 1.1rem; font-weight: 700; color: #2d3436; text-align: center; min-height: 4em; white-space: pre-wrap; margin-top: 10px; line-height: 1.6; }
+        .hidden { display: none !important; }
+        .status-text { font-size: 12px; color: #636e72; margin-top: 5px; }
+    </style>
+</head>
+<body>
+
+<div id="editor-ui" class="editor-box">
+    <h3>💌 製作你的螢光音樂賀卡</h3>
+    <input type="text" id="userMsg" value="祝你今天有個旋律般的好心情" placeholder="輸入祝福的話...">
+    <button onclick="generatePureUrl()">🔗 複製並分享賀卡連結</button>
+    <button class="secondary" onclick="previewCard()">👀 預覽卡片效果</button>
+    <p class="status-text">Neon Visualizer Mode</p>
+</div>
+
+<div id="card-container" class="hidden" onclick="unlockAudioAndOpen()">
+    <div id="card-flap" class="hint-animation">
+        <div id="card-cover"></div> 
+        <div id="card-left-inner"></div>
+    </div>
+    <div id="card-right-inner">
+        <div id="music-visualizer">
+            <div class="bar"></div><div class="bar"></div><div class="bar"></div><div class="bar"></div>
+            <div class="bar"></div><div class="bar"></div><div class="bar"></div><div class="bar"></div>
+            <div class="bar"></div><div class="bar"></div><div class="bar"></div><div class="bar"></div>
+            <div class="bar"></div><div class="bar"></div><div class="bar"></div><div class="bar"></div>
+            <div class="bar"></div><div class="bar"></div><div class="bar"></div><div class="bar"></div>
+        </div>
+        
+        <div id="typing-text"></div>
+        <div id="qrcode-container" style="margin-top:auto;"></div>
+        <p style="font-size:10px; color:#b2bec3; margin-top:5px;">Click card to play music</p>
+    </div>
+</div>
+
+<div id="youtube-player-container"><div id="yt-player"></div></div>
+
+<script>
+    let player, isPlayerReady = false;
+    const PLAYLIST_ID = 'PL1U2BLQmiBscIDy9QQvCmAF-rKjhafMuM'; 
+
+    const tag = document.createElement('script');
+    tag.src = "https://www.youtube.com/iframe_api";
+    const firstScriptTag = document.getElementsByTagName('script')[0];
+    firstScriptTag.parentNode.insertBefore(tag, firstScriptTag);
+
+    function onYouTubeIframeAPIReady() {
+        player = new YT.Player('yt-player', {
+            height: '200', width: '200',
+            playerVars: { 'listType': 'playlist', 'list': PLAYLIST_ID, 'autoplay': 0, 'controls': 0, 'loop': 1, 'playsinline': 1 },
+            events: { 'onReady': onPlayerReady }
+        });
+    }
+    function onPlayerReady(event) { isPlayerReady = true; player.setShuffle(true); }
+
+    // --- 物理引擎 ---
+    let visualizerInterval = null;
+    const bars = document.querySelectorAll('.bar');
+    let currentHeights = new Array(bars.length).fill(5);
+
+    function startPhysicsVisualizer() {
+        if (visualizerInterval) clearInterval(visualizerInterval);
+        visualizerInterval = setInterval(() => {
+            bars.forEach((bar, i) => {
+                let triggerChance = 0.2; 
+                if (Math.random() < triggerChance) {
+                    let targetHeight = Math.random() * 85 + 10;
+                    if (targetHeight > currentHeights[i]) {
+                        currentHeights[i] = targetHeight;
+                    }
+                }
+                // 下落物理：模擬重力
+                currentHeights[i] -= 5.5; 
+                if (currentHeights[i] < 5) { currentHeights[i] = 5; }
+                bar.style.height = `${currentHeights[i]}%`;
+                
+                // 根據高度調整發光亮度
+                let brightness = 0.4 + (currentHeights[i] / 100);
+                bar.style.filter = `brightness(${brightness})`;
+            });
+        }, 45); 
+    }
+
+    let typingInterval = null;
+    window.onload = () => {
+        const cover = document.getElementById('card-cover');
+        const img = new Image(); img.src = 'IMG_6823.jpeg';
+        img.onerror = () => { cover.style.backgroundImage = 'none'; cover.classList.add('no-img'); cover.innerHTML = "NEON MUSIC"; };
+
+        const urlParams = new URLSearchParams(window.location.search);
+        if (urlParams.has('v')) {
+            document.getElementById('editor-ui').classList.add('hidden');
+            document.getElementById('card-container').classList.remove('hidden');
+            const msg = decodeURIComponent(urlParams.get('t') || "");
+            document.getElementById('typing-text').dataset.fullText = msg;
+            try { new QRCode(document.getElementById('qrcode-container'), { text: window.location.href, width: 70, height: 70, colorDark : "#2d3436", colorLight : "#ffffff" }); } catch(e){}
+        }
+    };
+
+    function unlockAudioAndOpen() {
+        const container = document.getElementById('card-container');
+        const flap = document.getElementById('card-flap');
+        const textEl = document.getElementById('typing-text');
+        
+        if (!container.classList.contains('is-open')) {
+            if (isPlayerReady) {
+                player.playVideo(); player.unMute(); player.setVolume(70);
+                startPhysicsVisualizer();
+            }
+            flap.classList.remove('hint-animation');
+            setTimeout(() => { container.classList.add('is-open'); }, 50);
+            
+            const msg = textEl.dataset.fullText || document.getElementById('userMsg').value;
+            textEl.innerText = ""; let i = 0;
+            setTimeout(() => {
+                if (typingInterval) clearInterval(typingInterval);
+                typingInterval = setInterval(() => { 
+                    if (i < msg.length) { textEl.innerText += msg[i]; i++; } else { clearInterval(typingInterval); } 
+                }, 150);
+            }, 1000);
+        }
+    }
+
+    function previewCard() {
+        document.getElementById('editor-ui').classList.add('hidden');
+        document.getElementById('card-container').classList.remove('hidden');
+        document.getElementById('typing-text').dataset.fullText = document.getElementById('userMsg').value;
+    }
+
+    function generatePureUrl() {
+        const msg = document.getElementById('userMsg').value;
+        const params = new URLSearchParams();
+        params.set('t', encodeURIComponent(msg));
+        params.set('v', '5'); 
+        const url = `${window.location.origin}${window.location.pathname}?${params.toString()}`;
+        navigator.clipboard.writeText(url).then(() => { alert("✅ 螢光賀卡連結已複製！"); });
+    }
+</script>
+</body>
+</html>
