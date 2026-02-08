@@ -10,23 +10,28 @@
         :root { 
             --primary: #6c5ce7; 
             --bg: #f1f2f6; 
-            --flip-duration: 1.8s; 
+            --flip-duration: 1.5s; 
             --card-width: 500px; 
             --card-height: 350px;
             --neon-green: #39FF14;
         }
-        body { font-family: -apple-system, sans-serif; background: var(--bg); margin: 0; display: flex; flex-direction: column; justify-content: center; align-items: center; min-height: 100vh; perspective: 2500px; overflow-x: hidden; }
+        body { font-family: -apple-system, sans-serif; background: var(--bg); margin: 0; display: flex; flex-direction: column; justify-content: center; align-items: center; min-height: 100vh; perspective: 2000px; overflow: hidden; }
         
+        /* 穩定容器：取消 translateX/Y 的大幅度移動 */
         #card-container { 
             width: var(--card-width); 
             height: var(--card-height); 
             position: relative; 
             transform-style: preserve-3d; 
-            transition: transform var(--flip-duration) cubic-bezier(0.4, 0, 0.2, 1); 
             cursor: pointer; 
+            /* 強制 GPU 加速 */
+            transform: translateZ(0); 
+            will-change: transform;
+            /* 讓整體稍微往下靠一點，給翻蓋留空間 */
+            margin-top: 150px; 
         }
-        #card-container.is-open { transform: translateY(175px); }
 
+        /* 封面層：向上翻轉 */
         #card-flap { 
             position: absolute; 
             width: 100%; 
@@ -35,10 +40,14 @@
             left: 0; 
             transform-style: preserve-3d; 
             transform-origin: top; 
-            transition: transform var(--flip-duration) cubic-bezier(0.4, 0, 0.2, 1); 
+            transition: transform var(--flip-duration) cubic-bezier(0.25, 0.46, 0.45, 0.94); 
             z-index: 100; 
+            backface-visibility: hidden;
+            transform: rotateX(0deg) translateZ(0);
         }
-        #card-container.is-open #card-flap { transform: rotateX(180deg); }
+        #card-container.is-open #card-flap { 
+            transform: rotateX(180deg) translateZ(0); 
+        }
         
         /* 封面正：IMG_6829.png */
         #card-cover { 
@@ -48,10 +57,10 @@
             background: url('IMG_6829.png') center/cover; 
             border-radius: 12px 12px 0 0; 
             backface-visibility: hidden; 
-            box-shadow: 0 5px 15px rgba(0,0,0,0.2);
+            box-shadow: 0 5px 15px rgba(0,0,0,0.1);
         }
 
-        /* 封面背：改用 IMG_6830.png (翻開後在上方) */
+        /* 封面背：IMG_6830.png (翻開後在上方) */
         #card-top-inner { 
             position: absolute; 
             width: 100%; 
@@ -60,9 +69,10 @@
             border-radius: 12px 12px 0 0; 
             transform: rotateX(180deg); 
             backface-visibility: hidden; 
+            box-shadow: 0 -5px 15px rgba(0,0,0,0.1);
         }
 
-        /* 下方底座：純白色，無背景圖 */
+        /* 下方底座：純白色，固定不動 */
         #card-bottom-inner { 
             position: absolute; 
             width: 100%; 
@@ -76,18 +86,18 @@
             align-items: center; 
             padding: 20px; 
             box-sizing: border-box; 
-            z-index: 10;
+            z-index: 50;
             box-shadow: 0 10px 30px rgba(0,0,0,0.05);
         }
         
         #music-visualizer { 
             display: flex; justify-content: center; align-items: flex-end; 
-            width: 80%; height: 65px; background: #000000; 
+            width: 80%; height: 65px; background: #000; 
             border-radius: 10px; margin-top: 30px; padding: 12px; box-sizing: border-box; gap: 4px;
         }
-        .bar { flex: 1; background: var(--neon-green); border-radius: 2px 2px 0 0; height: 5%; will-change: height; box-shadow: 0 0 8px var(--neon-green); }
+        .bar { flex: 1; background: var(--neon-green); border-radius: 2px 2px 0 0; height: 5%; box-shadow: 0 0 8px var(--neon-green); transition: height 0.05s linear; }
         
-        #typing-text { font-size: 1.3rem; font-weight: 800; color: #2d3436; text-align: center; min-height: 2.5em; margin: 20px 0; z-index: 20; }
+        #typing-text { font-size: 1.3rem; font-weight: 800; color: #2d3436; text-align: center; min-height: 2.5em; margin: 20px 0; }
         
         #qrcode-container { background: white; padding: 5px; border-radius: 5px; margin-top: auto; }
         #youtube-player-container { position: absolute; width: 1px; height: 1px; opacity: 0; pointer-events: none; }
@@ -99,8 +109,8 @@
         .hidden { display: none !important; }
 
         @media (max-width: 600px) {
-            :root { --card-width: 92vw; --card-height: 61vw; }
-            #card-container.is-open { transform: translateY(30vw); }
+            :root { --card-width: 90vw; --card-height: 60vw; }
+            #card-container { margin-top: 40vw; } /* 調整手機上的間距 */
             #typing-text { font-size: 1.1rem; }
         }
     </style>
@@ -157,11 +167,11 @@
         visualizerInterval = setInterval(() => {
             bars.forEach((bar, i) => {
                 if (Math.random() < 0.22) currentHeights[i] = Math.random() * 85 + 10;
-                currentHeights[i] -= 5.5;
+                currentHeights[i] -= 6;
                 if (currentHeights[i] < 5) currentHeights[i] = 5;
                 bar.style.height = `${currentHeights[i]}%`;
             });
-        }, 45);
+        }, 50);
     }
 
     function unlockAudioAndOpen() {
@@ -197,7 +207,7 @@
     }
 
     function generatePureUrl() {
-        const url = `${window.location.origin}${window.location.pathname}?v=8&t=${encodeURIComponent(document.getElementById('userMsg').value)}`;
+        const url = `${window.location.origin}${window.location.pathname}?v=9&t=${encodeURIComponent(document.getElementById('userMsg').value)}`;
         navigator.clipboard.writeText(url).then(() => alert("✅ 分享連結已複製！"));
     }
 </script>
