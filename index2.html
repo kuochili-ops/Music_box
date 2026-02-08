@@ -9,7 +9,7 @@
         :root { 
             --primary: #6c5ce7; 
             --bg: #f1f2f6; 
-            --flip-duration: 1.5s; 
+            --flip-duration: 1.6s; 
             --card-width: 500px; 
             --card-height: 350px;
             --neon-green: #39FF14;
@@ -32,11 +32,27 @@
             top: 0; left: 0; 
             transform-style: preserve-3d; 
             transform-origin: top; 
-            transition: transform var(--flip-duration) cubic-bezier(0.25, 0.46, 0.45, 0.94); 
+            /* 預設過渡效果，稍後在 JS 中會切換 */
+            transition: transform 0.3s ease-out; 
             z-index: 100; 
             backface-visibility: hidden;
+            transform: rotateX(0deg);
         }
-        #card-container.is-open #card-flap { transform: rotateX(180deg); }
+
+        /* 打開前的小幅度由下往上翻動動畫 */
+        .hint-animation { 
+            animation: flap-hint 3s ease-in-out infinite; 
+        }
+        @keyframes flap-hint { 
+            0%, 100% { transform: rotateX(0deg); } 
+            50% { transform: rotateX(12deg); } /* 向上微翻 */
+        }
+
+        /* 完整翻開的狀態 */
+        #card-container.is-open #card-flap { 
+            transform: rotateX(180deg); 
+            transition: transform var(--flip-duration) cubic-bezier(0.19, 1, 0.22, 1);
+        }
         
         #card-cover { 
             position: absolute; width: 100%; height: 100%; 
@@ -54,7 +70,6 @@
             backface-visibility: hidden; 
         }
 
-        /* 下方底座：優化防震 */
         #card-bottom-inner { 
             position: absolute; width: 100%; height: 100%; 
             top: 0; left: 0; 
@@ -64,44 +79,35 @@
             padding: 20px; box-sizing: border-box; 
             z-index: 50;
             box-shadow: 0 10px 30px rgba(0,0,0,0.05);
-            contain: layout; /* 關鍵：鎖定佈局，防止內容變化引起容器震動 */
+            contain: layout;
         }
         
         #music-visualizer { 
             display: flex; justify-content: center; align-items: flex-end; 
             width: 80%; height: 65px; background: #000; 
             border-radius: 10px; margin-top: 30px; padding: 12px; box-sizing: border-box; gap: 4px;
-            flex-shrink: 0; /* 禁止壓縮 */
         }
         .bar { flex: 1; background: var(--neon-green); border-radius: 2px 2px 0 0; height: 5%; box-shadow: 0 0 8px var(--neon-green); }
         
         #typing-text { font-size: 1.3rem; font-weight: 800; color: #2d3436; text-align: center; min-height: 2.5em; margin: 20px 0; width: 100%; }
         
-        /* QR Code：固定在右下角 */
         #qrcode-container { 
             position: absolute;
-            right: 15px;
-            bottom: 15px;
-            background: white; 
-            padding: 5px; 
-            border-radius: 5px; 
+            right: 15px; bottom: 15px;
+            background: white; padding: 5px; border-radius: 5px; 
             box-shadow: 0 2px 10px rgba(0,0,0,0.1);
             z-index: 60;
         }
 
-        #youtube-player-container { position: absolute; width: 1px; height: 1px; opacity: 0; pointer-events: none; }
-
         .editor-box { background: white; padding: 20px; border-radius: 20px; box-shadow: 0 10px 30px rgba(0,0,0,0.1); width: 90%; max-width: 420px; margin: 20px; z-index: 500; text-align: center; }
-        input { width: 100%; padding: 12px; border: 1px solid #ddd; border-radius: 10px; margin-bottom: 10px; box-sizing: border-box; font-size: 16px; }
+        input { width: 100%; padding: 12px; border: 1px solid #ddd; border-radius: 10px; margin-bottom: 10px; box-sizing: border-box; }
         button { width: 100%; padding: 12px; border-radius: 10px; border: none; font-weight: bold; cursor: pointer; background: var(--primary); color: white; margin-top: 8px; }
-        
         .hidden { display: none !important; }
 
         @media (max-width: 600px) {
             :root { --card-width: 90vw; --card-height: 60vw; }
             #card-container { margin-top: 45vw; }
-            #typing-text { font-size: 1.1rem; }
-            #qrcode-container { right: 10px; bottom: 10px; transform: scale(0.8); transform-origin: bottom right; }
+            #qrcode-container { transform: scale(0.8); right: 10px; bottom: 10px; }
         }
     </style>
 </head>
@@ -114,8 +120,8 @@
     <button style="background:#b2bec3;" onclick="previewCard()">👀 預覽卡片</button>
 </div>
 
-<div id="card-container" class="hidden" onclick="unlockAudioAndOpen()">
-    <div id="card-flap">
+<div id="card-container" class="hidden" onclick="handleFlip()">
+    <div id="card-flap" class="hint-animation">
         <div id="card-cover"></div> 
         <div id="card-top-inner"></div>
     </div>
@@ -131,7 +137,7 @@
     </div>
 </div>
 
-<div id="youtube-player-container"><div id="yt-player"></div></div>
+<div id="youtube-player-container" style="position:absolute; width:1px; height:1px; opacity:0; pointer-events:none;"><div id="yt-player"></div></div>
 
 <script>
     let player, isPlayerReady = false;
@@ -154,6 +160,7 @@
     let currentHeights = new Array(bars.length).fill(5);
 
     function startPhysicsVisualizer() {
+        if(visualizerInterval) return;
         visualizerInterval = setInterval(() => {
             bars.forEach((bar, i) => {
                 if (Math.random() < 0.22) currentHeights[i] = Math.random() * 85 + 10;
@@ -164,21 +171,38 @@
         }, 50);
     }
 
-    function unlockAudioAndOpen() {
+    // --- 關鍵修改：處理翻轉動作 ---
+    function handleFlip() {
         const container = document.getElementById('card-container');
+        const flap = document.getElementById('card-flap');
+        
         if (!container.classList.contains('is-open')) {
-            if (isPlayerReady) { player.playVideo(); player.unMute(); player.setVolume(70); startPhysicsVisualizer(); }
-            container.classList.add('is-open');
+            // 1. 立即停止提示動畫，卡片會先回到 rotateX(0) 的靜止狀態
+            flap.classList.remove('hint-animation');
             
-            const msg = document.getElementById('typing-text').dataset.fullText || document.getElementById('userMsg').value;
-            const textEl = document.getElementById('typing-text');
-            textEl.innerText = ""; let i = 0;
+            // 2. 稍微延遲，讓使用者感受到「停頓」與「重啟」，再進行大翻轉
             setTimeout(() => {
-                const timer = setInterval(() => {
-                    if (i < msg.length) { textEl.innerText += msg[i]; i++; } else clearInterval(timer);
-                }, 150);
-            }, 1000);
+                if (isPlayerReady) { 
+                    player.playVideo(); 
+                    player.unMute(); 
+                    player.setVolume(70); 
+                    startPhysicsVisualizer(); 
+                }
+                container.classList.add('is-open');
+                startTyping();
+            }, 300); // 300ms 的靜止停頓感
         }
+    }
+
+    function startTyping() {
+        const msg = document.getElementById('typing-text').dataset.fullText || document.getElementById('userMsg').value;
+        const textEl = document.getElementById('typing-text');
+        textEl.innerText = ""; let i = 0;
+        setTimeout(() => {
+            const timer = setInterval(() => {
+                if (i < msg.length) { textEl.innerText += msg[i]; i++; } else clearInterval(timer);
+            }, 150);
+        }, 1200);
     }
 
     window.onload = () => {
@@ -201,15 +225,10 @@
         const encodedMsg = encodeURIComponent(msg);
         const baseUrl = window.location.origin + window.location.pathname;
         const finalUrl = `${baseUrl}?t=${encodedMsg}`;
-
         if (navigator.clipboard && window.isSecureContext) {
-            navigator.clipboard.writeText(finalUrl).then(() => {
-                alert("✅ 連結已複製！");
-            }).catch(err => {
-                prompt("請手動複製連結：", finalUrl);
-            });
+            navigator.clipboard.writeText(finalUrl).then(() => alert("✅ 連結已複製！"));
         } else {
-            prompt("請複製下方連結分享：", finalUrl);
+            prompt("請手動複製連結：", finalUrl);
         }
     }
 </script>
