@@ -32,10 +32,9 @@
             transform-style: preserve-3d; 
             transform-origin: top; 
             transition: transform 0.3s ease-out; 
-            z-index: 100; 
-            backface-visibility: hidden;
-            transform: rotateX(0deg);
+            z-index: 200; /* 提高層級確保點擊 */
             cursor: pointer;
+            transform: rotateX(0deg);
         }
 
         /* 呼吸動畫 */
@@ -47,31 +46,33 @@
             50% { transform: rotateX(12deg); } 
         }
 
-        /* 完整翻開狀態 (180度) */
+        /* 完整翻開狀態 */
         #card-container.is-open #card-flap { 
             transform: rotateX(180deg); 
             transition: transform var(--flip-duration) cubic-bezier(0.19, 1, 0.22, 1);
         }
         
-        /* 上頁封面：cover_top.png */
+        /* 封面層 */
         #card-cover { 
             position: absolute; width: 100%; height: 100%; 
             background: url('cover_top.png') center/cover no-repeat; 
             border-radius: 12px 12px 0 0; 
             backface-visibility: hidden; 
             box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+            z-index: 2;
         }
 
-        /* 上頁裡側面：IMG_6830.PNG */
+        /* 裡側面層 (翻開後看到的面) */
         #card-top-inner { 
             position: absolute; width: 100%; height: 100%; 
             background: #fff url('IMG_6830.PNG') center/cover no-repeat; 
             border-radius: 12px 12px 0 0; 
             transform: rotateX(180deg); 
             backface-visibility: hidden; 
+            z-index: 1;
         }
 
-        /* 下頁底座側面：IMG_6829.png */
+        /* 下頁底座側面 */
         #card-bottom-inner { 
             position: absolute; width: 100%; height: 100%; 
             top: 0; left: 0; 
@@ -81,7 +82,6 @@
             padding: 20px; box-sizing: border-box; 
             z-index: 50;
             box-shadow: 0 10px 30px rgba(0,0,0,0.05);
-            contain: layout;
         }
         
         #music-visualizer { 
@@ -93,14 +93,7 @@
         
         #typing-text { font-size: 1.3rem; font-weight: 800; color: #ffffff; text-shadow: 0 2px 4px rgba(0,0,0,0.5); text-align: center; min-height: 2.5em; margin: 20px 0; width: 100%; }
         
-        /* QR Code 與 靜音鍵佈局 */
-        #qrcode-container { 
-            position: absolute;
-            left: 15px; bottom: 15px;
-            background: white; padding: 5px; border-radius: 5px; 
-            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
-            z-index: 60;
-        }
+        #qrcode-container { position: absolute; left: 15px; bottom: 15px; background: white; padding: 5px; border-radius: 5px; z-index: 60; }
 
         #mute-btn {
             position: fixed;
@@ -116,9 +109,7 @@
             z-index: 1000;
         }
 
-        .editor-box { background: white; padding: 20px; border-radius: 20px; box-shadow: 0 10px 30px rgba(0,0,0,0.1); width: 90%; max-width: 420px; margin: 20px; z-index: 500; text-align: center; }
-        input { width: 100%; padding: 12px; border: 1px solid #ddd; border-radius: 10px; margin-bottom: 10px; box-sizing: border-box; }
-        button { width: 100%; padding: 12px; border-radius: 10px; border: none; font-weight: bold; cursor: pointer; background: var(--primary); color: white; margin-top: 8px; }
+        .editor-box { background: white; padding: 20px; border-radius: 20px; width: 90%; max-width: 420px; margin: 20px; z-index: 500; text-align: center; }
         .hidden { display: none !important; }
 
         @media (max-width: 600px) {
@@ -131,9 +122,9 @@
 
 <div id="editor-ui" class="editor-box">
     <h3>🐎 𓃥 白六音樂賀卡製作</h3>
-    <input type="text" id="userMsg" value="萬馬奔騰，新春大吉！" placeholder="輸入祝福...">
-    <button onclick="generatePureUrl()">🔗 複製分享連結</button>
-    <button style="background:#b2bec3;" onclick="previewCard()">👀 預覽卡片</button>
+    <input type="text" id="userMsg" value="萬馬奔騰，新春大吉！" style="width:100%; padding:10px; margin-bottom:10px;">
+    <button onclick="generatePureUrl()" style="width:100%; padding:10px; background:var(--primary); color:white; border:none; border-radius:10px;">🔗 複製分享連結</button>
+    <button onclick="previewCard()" style="width:100%; padding:10px; background:#b2bec3; color:white; border:none; border-radius:10px; margin-top:10px;">👀 預覽卡片</button>
 </div>
 
 <div id="card-container" class="hidden">
@@ -154,8 +145,7 @@
 </div>
 
 <div id="mute-btn" class="hidden" onclick="toggleMute()">🔊</div>
-
-<div id="youtube-player-container" style="position:absolute; width:1px; height:1px; opacity:0; pointer-events:none;"><div id="yt-player"></div></div>
+<div id="yt-player-container" style="position:absolute; width:1px; height:1px; opacity:0;"><div id="yt-player"></div></div>
 
 <script>
     let player, isPlayerReady = false, musicStarted = false, isMuted = false;
@@ -177,11 +167,10 @@
     document.head.appendChild(tag);
 
     let visualizerInterval = null;
-    const bars = document.querySelectorAll('.bar');
-    let currentHeights = new Array(bars.length).fill(5);
-
     function startPhysicsVisualizer() {
         if(visualizerInterval) return;
+        const bars = document.querySelectorAll('.bar');
+        let currentHeights = new Array(bars.length).fill(5);
         visualizerInterval = setInterval(() => {
             bars.forEach((bar, i) => {
                 if (Math.random() < 0.22) currentHeights[i] = Math.random() * 85 + 10;
@@ -192,38 +181,36 @@
         }, 50);
     }
 
-    // 控制開關的核心邏輯
+    // 核心切換邏輯
     function toggleCard() {
         const container = document.getElementById('card-container');
         const flap = document.getElementById('card-flap');
         const muteBtn = document.getElementById('mute-btn');
         
-        // 啟動音樂（僅限第一次點擊）
-        if (!musicStarted) {
-            if (isPlayerReady) {
-                player.playVideo();
-                player.unMute();
-                player.setVolume(70);
-                startPhysicsVisualizer();
-            }
+        // 音樂啟動
+        if (!musicStarted && isPlayerReady) {
+            player.playVideo();
+            player.unMute();
+            startPhysicsVisualizer();
             musicStarted = true;
             muteBtn.classList.remove('hidden');
         }
 
-        if (!container.classList.contains('is-open')) {
-            // 打開卡片
-            flap.classList.remove('hint-animation'); // 停止呼吸
+        if (container.classList.contains('is-open')) {
+            // 閉合
+            container.classList.remove('is-open');
+            // 動畫結束後恢復呼吸
+            setTimeout(() => {
+                if(!container.classList.contains('is-open')) flap.classList.add('hint-animation');
+            }, 1600); 
+        } else {
+            // 開啟
+            flap.classList.remove('hint-animation');
+            // 給予一個極短延遲確保呼吸動畫類名已被移除，避免 transition 衝突
             setTimeout(() => {
                 container.classList.add('is-open');
                 startTyping();
-            }, 300); // 些微停頓感
-        } else {
-            // 關閉卡片
-            container.classList.remove('is-open');
-            // 等待翻蓋動畫結束後，重新啟動呼吸效果
-            setTimeout(() => {
-                flap.classList.add('hint-animation');
-            }, 1000); 
+            }, 50);
         }
     }
 
@@ -236,10 +223,10 @@
     }
 
     function startTyping() {
-        const msg = document.getElementById('typing-text').dataset.fullText || document.getElementById('userMsg').value;
         const textEl = document.getElementById('typing-text');
         if (textEl.innerText !== "") return;
-        textEl.innerText = ""; let i = 0;
+        const msg = textEl.dataset.fullText || document.getElementById('userMsg').value;
+        let i = 0;
         setTimeout(() => {
             const timer = setInterval(() => {
                 if (i < msg.length) { textEl.innerText += msg[i]; i++; } else clearInterval(timer);
@@ -264,9 +251,7 @@
 
     function generatePureUrl() {
         const msg = document.getElementById('userMsg').value;
-        const encodedMsg = encodeURIComponent(msg);
-        const baseUrl = window.location.origin + window.location.pathname;
-        const finalUrl = `${baseUrl}?t=${encodedMsg}`;
+        const finalUrl = `${window.location.origin}${window.location.pathname}?t=${encodeURIComponent(msg)}`;
         if (navigator.clipboard && window.isSecureContext) {
             navigator.clipboard.writeText(finalUrl).then(() => alert("✅ 連結已複製！"));
         } else {
