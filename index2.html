@@ -32,7 +32,6 @@
             top: 0; left: 0; 
             transform-style: preserve-3d; 
             transform-origin: top; 
-            /* 預設過渡效果，稍後在 JS 中會切換 */
             transition: transform 0.3s ease-out; 
             z-index: 100; 
             backface-visibility: hidden;
@@ -54,22 +53,25 @@
             transition: transform var(--flip-duration) cubic-bezier(0.19, 1, 0.22, 1);
         }
         
+        /* 上頁封面：使用 cover_top.png */
         #card-cover { 
             position: absolute; width: 100%; height: 100%; 
-            background: url('IMG_6829.png') center/cover; 
+            background: url('cover_top.png') center/cover no-repeat; 
             border-radius: 12px 12px 0 0; 
             backface-visibility: hidden; 
             box-shadow: 0 5px 15px rgba(0,0,0,0.1);
         }
 
+        /* 下頁裡側面（翻轉後在上方的那一面）：使用 IMG_6829.png */
         #card-top-inner { 
             position: absolute; width: 100%; height: 100%; 
-            background: #fff url('IMG_6830.PNG') center/cover no-repeat; 
+            background: #fff url('IMG_6829.png') center/cover no-repeat; 
             border-radius: 12px 12px 0 0; 
             transform: rotateX(180deg); 
             backface-visibility: hidden; 
         }
 
+        /* 底部留言區 */
         #card-bottom-inner { 
             position: absolute; width: 100%; height: 100%; 
             top: 0; left: 0; 
@@ -141,13 +143,16 @@
 
 <script>
     let player, isPlayerReady = false;
-    const PLAYLIST_ID = 'PL1U2BLQmiBscIDy9QQvCmAF-rKjhafMuM'; 
+    // 使用您提到的馬年音樂 ID
+    const videoIds = ['awI2aGxFIZg', 'g9KEASi-tas'];
+    const selectedVideo = videoIds[Math.floor(Math.random() * videoIds.length)];
 
     function onYouTubeIframeAPIReady() {
         player = new YT.Player('yt-player', {
             height: '100', width: '100',
-            playerVars: { 'listType': 'playlist', 'list': PLAYLIST_ID, 'autoplay': 0, 'controls': 0, 'loop': 1, 'playsinline': 1 },
-            events: { 'onReady': (e) => { isPlayerReady = true; player.setShuffle(true); } }
+            videoId: selectedVideo,
+            playerVars: { 'autoplay': 0, 'controls': 0, 'loop': 1, 'playsinline': 1 },
+            events: { 'onReady': (e) => { isPlayerReady = true; } }
         });
     }
 
@@ -171,16 +176,15 @@
         }, 50);
     }
 
-    // --- 關鍵修改：處理翻轉動作 ---
     function handleFlip() {
         const container = document.getElementById('card-container');
         const flap = document.getElementById('card-flap');
         
         if (!container.classList.contains('is-open')) {
-            // 1. 立即停止提示動畫，卡片會先回到 rotateX(0) 的靜止狀態
+            // 1. 立即停止提示動畫，卡片會先回到靜止狀態
             flap.classList.remove('hint-animation');
             
-            // 2. 稍微延遲，讓使用者感受到「停頓」與「重啟」，再進行大翻轉
+            // 2. 稍微延遲後開啟，呈現物理質感
             setTimeout(() => {
                 if (isPlayerReady) { 
                     player.playVideo(); 
@@ -190,7 +194,7 @@
                 }
                 container.classList.add('is-open');
                 startTyping();
-            }, 300); // 300ms 的靜止停頓感
+            }, 300);
         }
     }
 
