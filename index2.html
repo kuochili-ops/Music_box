@@ -21,7 +21,6 @@
             height: var(--card-height); 
             position: relative; 
             transform-style: preserve-3d; 
-            cursor: pointer; 
             transform: translateZ(0); 
             margin-top: 150px; 
         }
@@ -36,9 +35,10 @@
             z-index: 100; 
             backface-visibility: hidden;
             transform: rotateX(0deg);
+            cursor: pointer;
         }
 
-        /* 打開前的小幅度微翻動動畫 */
+        /* 呼吸動畫 */
         .hint-animation { 
             animation: flap-hint 3s ease-in-out infinite; 
         }
@@ -53,7 +53,7 @@
             transition: transform var(--flip-duration) cubic-bezier(0.19, 1, 0.22, 1);
         }
         
-        /* 1. 封面：使用 cover_top.png */
+        /* 封面：cover_top.png */
         #card-cover { 
             position: absolute; width: 100%; height: 100%; 
             background: url('cover_top.png') center/cover no-repeat; 
@@ -62,7 +62,7 @@
             box-shadow: 0 5px 15px rgba(0,0,0,0.1);
         }
 
-        /* 2. 上頁裡側面：翻開後在上方的那面，使用 IMG_6830.PNG */
+        /* 上頁裡側面：IMG_6830.PNG */
         #card-top-inner { 
             position: absolute; width: 100%; height: 100%; 
             background: #fff url('IMG_6830.PNG') center/cover no-repeat; 
@@ -71,7 +71,7 @@
             backface-visibility: hidden; 
         }
 
-        /* 3. 下頁底座側面：使用 IMG_6829.png 作為留言板背景 */
+        /* 下頁底座側面：IMG_6829.png */
         #card-bottom-inner { 
             position: absolute; width: 100%; height: 100%; 
             top: 0; left: 0; 
@@ -86,20 +86,38 @@
         
         #music-visualizer { 
             display: flex; justify-content: center; align-items: flex-end; 
-            width: 80%; height: 65px; background: rgba(0,0,0,0.7); /* 半透明背景，讓底圖若隱若現 */
+            width: 80%; height: 65px; background: rgba(0,0,0,0.7);
             border-radius: 10px; margin-top: 30px; padding: 12px; box-sizing: border-box; gap: 4px;
         }
         .bar { flex: 1; background: var(--neon-green); border-radius: 2px 2px 0 0; height: 5%; box-shadow: 0 0 8px var(--neon-green); }
         
         #typing-text { font-size: 1.3rem; font-weight: 800; color: #ffffff; text-shadow: 0 2px 4px rgba(0,0,0,0.5); text-align: center; min-height: 2.5em; margin: 20px 0; width: 100%; }
         
+        /* QR Code */
         #qrcode-container { 
             position: absolute;
-            right: 15px; bottom: 15px;
+            left: 15px; bottom: 15px;
             background: white; padding: 5px; border-radius: 5px; 
             box-shadow: 0 2px 10px rgba(0,0,0,0.1);
             z-index: 60;
         }
+
+        /* 靜音切換鍵 */
+        #mute-btn {
+            position: fixed;
+            right: 20px; bottom: 20px;
+            width: 50px; height: 50px;
+            background: var(--primary);
+            color: white;
+            border-radius: 50%;
+            display: flex; justify-content: center; align-items: center;
+            font-size: 24px;
+            cursor: pointer;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.2);
+            z-index: 1000;
+            transition: transform 0.2s;
+        }
+        #mute-btn:active { transform: scale(0.9); }
 
         .editor-box { background: white; padding: 20px; border-radius: 20px; box-shadow: 0 10px 30px rgba(0,0,0,0.1); width: 90%; max-width: 420px; margin: 20px; z-index: 500; text-align: center; }
         input { width: 100%; padding: 12px; border: 1px solid #ddd; border-radius: 10px; margin-bottom: 10px; box-sizing: border-box; }
@@ -109,7 +127,6 @@
         @media (max-width: 600px) {
             :root { --card-width: 90vw; --card-height: 60vw; }
             #card-container { margin-top: 45vw; }
-            #qrcode-container { transform: scale(0.8); right: 10px; bottom: 10px; }
         }
     </style>
 </head>
@@ -122,8 +139,8 @@
     <button style="background:#b2bec3;" onclick="previewCard()">👀 預覽卡片</button>
 </div>
 
-<div id="card-container" class="hidden" onclick="handleFlip()">
-    <div id="card-flap" class="hint-animation">
+<div id="card-container" class="hidden">
+    <div id="card-flap" class="hint-animation" onclick="toggleCard()">
         <div id="card-cover"></div> 
         <div id="card-top-inner"></div>
     </div>
@@ -139,19 +156,25 @@
     </div>
 </div>
 
+<div id="mute-btn" class="hidden" onclick="toggleMute()">🔊</div>
+
 <div id="youtube-player-container" style="position:absolute; width:1px; height:1px; opacity:0; pointer-events:none;"><div id="yt-player"></div></div>
 
 <script>
-    let player, isPlayerReady = false;
-    const videoIds = ['awI2aGxFIZg', 'g9KEASi-tas'];
-    const selectedVideo = videoIds[Math.floor(Math.random() * videoIds.length)];
+    let player, isPlayerReady = false, musicStarted = false, isMuted = false;
+    const PLAYLIST_ID = 'PL1U2BLQmiBscIDy9QQvCmAF-rKjhafMuM'; 
 
     function onYouTubeIframeAPIReady() {
         player = new YT.Player('yt-player', {
             height: '100', width: '100',
-            videoId: selectedVideo,
-            playerVars: { 'autoplay': 0, 'controls': 0, 'loop': 1, 'playsinline': 1 },
-            events: { 'onReady': (e) => { isPlayerReady = true; } }
+            playerVars: { 'listType': 'playlist', 'list': PLAYLIST_ID, 'autoplay': 0, 'controls': 0, 'loop': 1, 'playsinline': 1 },
+            events: { 
+                'onReady': (e) => { isPlayerReady = true; player.setShuffle(true); },
+                'onStateChange': (e) => {
+                    // 循環播放處理
+                    if (e.data === YT.PlayerState.ENDED) player.playVideo();
+                }
+            }
         });
     }
 
@@ -175,28 +198,57 @@
         }, 50);
     }
 
-    function handleFlip() {
+    function toggleCard() {
         const container = document.getElementById('card-container');
         const flap = document.getElementById('card-flap');
+        const muteBtn = document.getElementById('mute-btn');
         
+        // 第一次點擊：啟動音樂
+        if (!musicStarted) {
+            if (isPlayerReady) {
+                player.playVideo();
+                player.unMute();
+                player.setVolume(70);
+                startPhysicsVisualizer();
+            }
+            musicStarted = true;
+            muteBtn.classList.remove('hidden'); // 顯示靜音鍵
+        }
+
         if (!container.classList.contains('is-open')) {
+            // 開啟動作：先停下呼吸
             flap.classList.remove('hint-animation');
             setTimeout(() => {
-                if (isPlayerReady) { 
-                    player.playVideo(); 
-                    player.unMute(); 
-                    player.setVolume(70); 
-                    startPhysicsVisualizer(); 
-                }
                 container.classList.add('is-open');
                 startTyping();
             }, 300);
+        } else {
+            // 閉合動作
+            container.classList.remove('is-open');
+            // 閉合後重新加入呼吸動畫
+            setTimeout(() => {
+                flap.classList.add('hint-animation');
+            }, 1000); 
         }
+    }
+
+    function toggleMute() {
+        if (!isPlayerReady) return;
+        const btn = document.getElementById('mute-btn');
+        if (isMuted) {
+            player.unMute();
+            btn.innerText = '🔊';
+        } else {
+            player.mute();
+            btn.innerText = '🔇';
+        }
+        isMuted = !isMuted;
     }
 
     function startTyping() {
         const msg = document.getElementById('typing-text').dataset.fullText || document.getElementById('userMsg').value;
         const textEl = document.getElementById('typing-text');
+        if (textEl.innerText !== "") return; // 避免重複觸發
         textEl.innerText = ""; let i = 0;
         setTimeout(() => {
             const timer = setInterval(() => {
