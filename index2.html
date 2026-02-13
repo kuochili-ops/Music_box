@@ -21,10 +21,10 @@
             height: var(--card-height); 
             position: relative; 
             transform-style: preserve-3d; 
-            transform: translateZ(0); 
             margin-top: 150px; 
         }
 
+        /* 翻蓋區域 */
         #card-flap { 
             position: absolute; 
             width: 100%; height: 100%; 
@@ -47,13 +47,13 @@
             50% { transform: rotateX(12deg); } 
         }
 
-        /* 完整翻開狀態 */
+        /* 完整翻開狀態 (180度) */
         #card-container.is-open #card-flap { 
             transform: rotateX(180deg); 
             transition: transform var(--flip-duration) cubic-bezier(0.19, 1, 0.22, 1);
         }
         
-        /* 封面：cover_top.png */
+        /* 上頁封面：cover_top.png */
         #card-cover { 
             position: absolute; width: 100%; height: 100%; 
             background: url('cover_top.png') center/cover no-repeat; 
@@ -93,7 +93,7 @@
         
         #typing-text { font-size: 1.3rem; font-weight: 800; color: #ffffff; text-shadow: 0 2px 4px rgba(0,0,0,0.5); text-align: center; min-height: 2.5em; margin: 20px 0; width: 100%; }
         
-        /* QR Code */
+        /* QR Code 與 靜音鍵佈局 */
         #qrcode-container { 
             position: absolute;
             left: 15px; bottom: 15px;
@@ -102,7 +102,6 @@
             z-index: 60;
         }
 
-        /* 靜音切換鍵 */
         #mute-btn {
             position: fixed;
             right: 20px; bottom: 20px;
@@ -115,9 +114,7 @@
             cursor: pointer;
             box-shadow: 0 4px 10px rgba(0,0,0,0.2);
             z-index: 1000;
-            transition: transform 0.2s;
         }
-        #mute-btn:active { transform: scale(0.9); }
 
         .editor-box { background: white; padding: 20px; border-radius: 20px; box-shadow: 0 10px 30px rgba(0,0,0,0.1); width: 90%; max-width: 420px; margin: 20px; z-index: 500; text-align: center; }
         input { width: 100%; padding: 12px; border: 1px solid #ddd; border-radius: 10px; margin-bottom: 10px; box-sizing: border-box; }
@@ -170,10 +167,7 @@
             playerVars: { 'listType': 'playlist', 'list': PLAYLIST_ID, 'autoplay': 0, 'controls': 0, 'loop': 1, 'playsinline': 1 },
             events: { 
                 'onReady': (e) => { isPlayerReady = true; player.setShuffle(true); },
-                'onStateChange': (e) => {
-                    // 循環播放處理
-                    if (e.data === YT.PlayerState.ENDED) player.playVideo();
-                }
+                'onStateChange': (e) => { if (e.data === YT.PlayerState.ENDED) player.playVideo(); }
             }
         });
     }
@@ -198,12 +192,13 @@
         }, 50);
     }
 
+    // 控制開關的核心邏輯
     function toggleCard() {
         const container = document.getElementById('card-container');
         const flap = document.getElementById('card-flap');
         const muteBtn = document.getElementById('mute-btn');
         
-        // 第一次點擊：啟動音樂
+        // 啟動音樂（僅限第一次點擊）
         if (!musicStarted) {
             if (isPlayerReady) {
                 player.playVideo();
@@ -212,20 +207,20 @@
                 startPhysicsVisualizer();
             }
             musicStarted = true;
-            muteBtn.classList.remove('hidden'); // 顯示靜音鍵
+            muteBtn.classList.remove('hidden');
         }
 
         if (!container.classList.contains('is-open')) {
-            // 開啟動作：先停下呼吸
-            flap.classList.remove('hint-animation');
+            // 打開卡片
+            flap.classList.remove('hint-animation'); // 停止呼吸
             setTimeout(() => {
                 container.classList.add('is-open');
                 startTyping();
-            }, 300);
+            }, 300); // 些微停頓感
         } else {
-            // 閉合動作
+            // 關閉卡片
             container.classList.remove('is-open');
-            // 閉合後重新加入呼吸動畫
+            // 等待翻蓋動畫結束後，重新啟動呼吸效果
             setTimeout(() => {
                 flap.classList.add('hint-animation');
             }, 1000); 
@@ -235,20 +230,15 @@
     function toggleMute() {
         if (!isPlayerReady) return;
         const btn = document.getElementById('mute-btn');
-        if (isMuted) {
-            player.unMute();
-            btn.innerText = '🔊';
-        } else {
-            player.mute();
-            btn.innerText = '🔇';
-        }
+        if (isMuted) { player.unMute(); btn.innerText = '🔊'; } 
+        else { player.mute(); btn.innerText = '🔇'; }
         isMuted = !isMuted;
     }
 
     function startTyping() {
         const msg = document.getElementById('typing-text').dataset.fullText || document.getElementById('userMsg').value;
         const textEl = document.getElementById('typing-text');
-        if (textEl.innerText !== "") return; // 避免重複觸發
+        if (textEl.innerText !== "") return;
         textEl.innerText = ""; let i = 0;
         setTimeout(() => {
             const timer = setInterval(() => {
